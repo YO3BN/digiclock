@@ -49,7 +49,7 @@ struct frequency2
 
 uint8_t freq2selected = 0;
 
-static uint8_t event = 0;
+static volatile uint8_t event = 0;
 #define	DIAL_UP		1
 #define DIAL_DOWN	2
 #define PUSH_BTN	3
@@ -279,7 +279,7 @@ uint32_t tmp;
 //				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 //				lcd_print("LSB  ");
 //			}
-			
+
 			offset_freq -= 100;
 			set_freq();
 			sprintf(buffer, "%li    ", offset_freq);
@@ -298,17 +298,17 @@ uint32_t tmp;
 				freq2selected = 1;
 			}
 
-			sprintf(buffer, "%lu    ", frequency.hz + frequency.step);
-			frequency_commas(buffer);
-			lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
-			lcd_print(buffer);
-
-			_delay_ms(1000);
-
-			sprintf(buffer, "%lu    ", frequency.hz);
-			frequency_commas(buffer);
-			lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
-			lcd_print(buffer);
+//			sprintf(buffer, "%lu    ", frequency.hz + frequency.step);
+//			frequency_commas(buffer);
+//			lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
+//			lcd_print(buffer);
+//
+//			_delay_ms(1000);
+//
+//			sprintf(buffer, "%lu    ", frequency.hz);
+//			frequency_commas(buffer);
+//			lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
+//			lcd_print(buffer);
 
 		}
 		else
@@ -372,8 +372,6 @@ uint32_t tmp;
 		}
 	}
 #endif
-
-	clear_events();
 }
 
 
@@ -392,6 +390,7 @@ int main(void)
 	char buffer[16];
 	uint8_t a = 0;
 	uint16_t zzz = 0;
+	uint16_t last_push = 0;
 
 // power the display on
 DDRB = 0b00000001;
@@ -436,7 +435,6 @@ PORTB = 0b00000001;
 
 	for (;;)
 	{
-
 		if (zzz++ == 65535) {
 			zzz = 0;
 			adc_value = adc_get_value();
@@ -480,12 +478,27 @@ PORTB = 0b00000001;
 			a = isr;
 		}
 		
-		if (push)
+		/*
+		 * Poor man's delayer for push button events.
+		 * If pressed very fast, for example.
+		 * Maybe fixed by hardware using a cap over push contact ?
+		 */
+		if (last_push == 0)
 		{
-			event = PUSH_BTN;
+			if (push)
+			{
+				event = PUSH_BTN;
+				push = 0;
+				last_push = 65535;
+			}
+		} else {
+			/* if the time is not expired, then clear the PUSH event */
+			last_push--;
 			push = 0;
 		}
+
 		process_event();
+		clear_events();
 	}
 
 	return -1;
