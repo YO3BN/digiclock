@@ -71,6 +71,38 @@ ISR(PCINT3_vect)
 }
 
 
+
+
+void putch_freq(char c, char pos)
+{
+	lcd_send_instr(LCD_INSTR_SET_DDRAM | pos);
+	lcd_send_data(c);
+}
+
+void show_freq(const char *s)
+{
+	char *p;
+	char x = 0;
+	char lcd_freq_pos = 15;
+
+	/* p points to the end of the string */
+	p = s + strlen(s) - 1;
+
+	while (p >= s)
+	{
+		putch_freq(*p, lcd_freq_pos--);
+		x++;
+
+		if (!(x % 3))
+		{
+			putch_freq(',', lcd_freq_pos--);
+		}
+		p--;
+	}
+}
+
+
+
 void set_freq(void)
 {
 	char buffer[16];
@@ -163,13 +195,8 @@ void set_freq(void)
 	}
 
 	/* Write freq to display */
-	//TODO with commas
-	if (1)
-	{
-		sprintf(buffer, "%lu    ", frequency.hz);
-		lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
-		lcd_print(buffer);
-	}
+	sprintf(buffer, "%lu", frequency.hz);
+	show_freq(buffer);
 
 	return;
 }
@@ -180,36 +207,6 @@ clear_events(void)
 	event = 0;
 }
 
-
-static void
-frequency_commas(char *s)
-{
-	return;
-	
-	int8_t len = strlen(s);
-	int8_t commas;
-	int8_t c;
-	char *p = s;
-
-	/* Calculate commas number */
-	commas = len / 3;
-	if ((commas > 0) && !(len % 3))
-		commas--;
-
-	/* Process string */
-	for (p += len, c = 0; (p > s) && (commas > 0); p--) {
-		*(p + commas) = *p;
-		/* don't count the string terminator */
-		if (*p == '\0') continue;
-
-		c++;
-		if (c == 3) {
-			commas--;
-			*(p + commas) = '.';
-			c = 0;
-		}
-	}
-}
 
 static void inline
 process_event(void)
