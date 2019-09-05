@@ -25,11 +25,25 @@ typedef enum IF_OPERATION_tag {
 
 // TODO these should be stored in eeprom
 #define IF_CENTER 9998250
-#define IF_ECART 4000
+#define IF_ECART 2500
 
 static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;
+static int16_t IfEcart = IF_ECART;
 
+typedef enum eMENU_ENTRY_tag
+{
+	MENU_ENTRY_NONE = 0,
+	MENU_ENTRY_FREQ_SET,
+	MENU_ENTRY_FREQ_CURSOR,
+	MENU_ENTRY_IF_ECART,
+	MENU_ENTRY_BFO_MODE,
+	MENU_ENTRY_BFO_OFFSET,
+	MENU_ENTRY_BACKLIGHT,
+	MENU_ENTRY_EXIT,
+}eMENU_ENTRY;
+
+static eMENU_ENTRY eMenuEntry = MENU_ENTRY_FREQ_SET;
 
 
 static int32_t offset_freq = 0;
@@ -41,11 +55,6 @@ struct frequency
 	uint32_t step;
 } frequency;
 
-struct frequency2
-{
-	uint32_t hz;
-	uint32_t step;
-} frequency2;
 
 uint8_t freq2selected = 0;
 
@@ -69,8 +78,6 @@ ISR(PCINT3_vect)
 		push = 1;
 	}
 }
-
-
 
 
 void putch_freq(char c, char pos)
@@ -137,13 +144,13 @@ void set_freq(void)
 		switch (eIFOp)
 		{
 		case IF_OPER_ADD:
-			vfo_freq -= IF_ECART / 2;
-			bfo_freq -= IF_ECART / 2;
+			vfo_freq -= IfEcart / 2;
+			bfo_freq -= IfEcart / 2;
 			break;
 
 		case IF_OPER_SUB:
-			vfo_freq += IF_ECART / 2;
-			bfo_freq += IF_ECART / 2;
+			vfo_freq += IfEcart / 2;
+			bfo_freq += IfEcart / 2;
 			break;
 
 		case IF_OPER_NONE:
@@ -158,13 +165,13 @@ void set_freq(void)
 		switch (eIFOp)
 		{
 		case IF_OPER_ADD:
-			vfo_freq += IF_ECART / 2;
-			bfo_freq += IF_ECART / 2;
+			vfo_freq += IfEcart / 2;
+			bfo_freq += IfEcart / 2;
 			break;
 
 		case IF_OPER_SUB:
-			vfo_freq -= IF_ECART / 2;
-			bfo_freq -= IF_ECART / 2;
+			vfo_freq -= IfEcart / 2;
+			bfo_freq -= IfEcart / 2;
 			break;
 
 		case IF_OPER_NONE:
@@ -211,164 +218,197 @@ clear_events(void)
 static void inline
 process_event(void)
 {
-
-
-static uint32_t last_freq = 0;
-static int32_t last_freq2 = 0;
-uint32_t tmp;
+	static uint32_t last_freq = 0;
+	static int32_t last_freq2 = 0;
+	uint32_t tmp;
 
 	if (!event) return;
 
-	char buffer[16];
+	char buffer[32];
 	switch (event) {
 		case DIAL_UP:
-		if (!freq2selected)
-		{
-			frequency.hz += frequency.step;
-			//si5351aSetFrequency1(frequency.hz);
-			set_freq();
-		}
-		else
-		{
-			//frequency2.hz += frequency2.step;
-			//si5351aSetFrequency2(frequency2.hz);
-//			if (eBfo == LSB)
-//			{
-//				eBfo = USB;
-//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//				lcd_print("USB  ");
-//			}
-//			else if (eBfo == USB)
-//			{
-//				eBfo = LSB;
-//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//				lcd_print("LSB  ");
-//			}
-			offset_freq += 100;
-			set_freq();
-			sprintf(buffer, "%li    ", offset_freq);
-			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-			lcd_print(buffer);
-		}
+			switch (eMenuEntry)
+			{
+			case MENU_ENTRY_FREQ_SET:
+				frequency.hz += frequency.step;
+				set_freq();
+				break;
+
+			case MENU_ENTRY_FREQ_CURSOR:
+				//TODO: change the cursor accordingly
+				frequency.step *= 10;
+				if (frequency.step >= 10000000)
+				{
+					frequency.step = 10;
+					//TODO: change the cursor accordingly
+				}
+				//TODO remove this
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "STEP: %lu       ", frequency.step);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_IF_ECART:
+				IfEcart += 100;
+				set_freq();
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BFO_MODE:
+				eBfo = USB;
+				set_freq();
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "BFO: USB     ");
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BFO_OFFSET:
+				offset_freq += 100;
+				set_freq();
+				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BACKLIGHT:
+				//TODO beautify this
+				DDRB = (DDRB & 0xFE) | 0x01;
+				PORTB = (PORTB & 0xFE) | 0x01;
+
+				sprintf(buffer, "LIGHT: ON    ");
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
+			default:
+				sprintf(buffer, "NOT IMPLEMENTED     ");
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+			}
+
 
 		break;
 
 		case DIAL_DOWN:
-		if (!freq2selected)
-		{
-			frequency.hz -= frequency.step;
-			//si5351aSetFrequency1(frequency.hz);
-			set_freq();
-		}
-		else
-		{
-			//frequency2.hz -= frequency2.step;
-			//si5351aSetFrequency2(frequency2.hz);
-//			if (eBfo == LSB)
-//			{
-//				eBfo = USB;
-//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//				lcd_print("USB  ");
-//			}
-//			else if (eBfo == USB)
-//			{
-//				eBfo = LSB;
-//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//				lcd_print("LSB  ");
-//			}
+			switch (eMenuEntry)
+			{
+			case MENU_ENTRY_FREQ_SET:
+				frequency.hz -= frequency.step;
+				set_freq();
+				break;
 
-			offset_freq -= 100;
-			set_freq();
-			sprintf(buffer, "%li    ", offset_freq);
-			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-			lcd_print(buffer);
-		}
+			case MENU_ENTRY_FREQ_CURSOR:
+				//TODO: change the cursor accordingly
+				frequency.step /= 10;
+				if (frequency.step < 10)
+				{
+					frequency.step = 1000000;
+					//TODO: change the cursor accordingly
+				}
+				//TODO remove this
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "STEP: %lu       ", frequency.step);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_IF_ECART:
+				IfEcart -= 100;
+				set_freq();
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BFO_MODE:
+				eBfo = LSB;
+				set_freq();
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "BFO: LSB     ");
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BFO_OFFSET:
+				offset_freq -= 100;
+				set_freq();
+				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BACKLIGHT:
+				//TODO beautify this
+				DDRB = DDRB & 0xFE;
+				PORTB = PORTB & 0xFE;
+
+				sprintf(buffer, "LIGHT: OFF         ");
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
+			default:
+				sprintf(buffer, "NOT IMPLEMENTED     ");
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+			}
 		break;
 
 		case PUSH_BTN:
-		if (!freq2selected)
-		{
-			frequency.step *= 10;
-			if (frequency.step >= 10000000)
+			eMenuEntry++;
+			switch (eMenuEntry)
 			{
-				frequency.step = 100;
-				freq2selected = 1;
+			case MENU_ENTRY_FREQ_SET:
+				//frequency.hz -= frequency.step;
+				//set_freq();
+				break;
+
+			case MENU_ENTRY_FREQ_CURSOR:
+				//TODO remove this
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "STEP: %lu       ", frequency.step);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_IF_ECART:
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BFO_MODE:
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				sprintf(buffer, "BFO: %s            ", eBfo == USB ? "USB" : "LSB");
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BFO_OFFSET:
+				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_BACKLIGHT:
+				sprintf(buffer, "LIGHT: ON/OFF     ");
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
+			default:
+				sprintf(buffer, "                   ");
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
 			}
 
-//			sprintf(buffer, "%lu    ", frequency.hz + frequency.step);
-//			frequency_commas(buffer);
-//			lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
-//			lcd_print(buffer);
-//
-//			_delay_ms(1000);
-//
-//			sprintf(buffer, "%lu    ", frequency.hz);
-//			frequency_commas(buffer);
-//			lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
-//			lcd_print(buffer);
-
-		}
-		else
-		{
-//			frequency2.step *= 10;
-//			if (frequency2.step >= 10000000)
-//			{
-//				frequency2.step = 100;
-//				freq2selected = 0;
-//			}
-//
-//			sprintf(buffer, "%lu    ", frequency2.hz + frequency2.step);
-//			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//			frequency_commas(buffer);
-//			lcd_print(buffer);
-//
-//			_delay_ms(1000);
-//
-//			sprintf(buffer, "%lu    ", frequency2.hz);
-//			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//			frequency_commas(buffer);
-//			lcd_print(buffer);
-/*			if (eBfo == LSB)
+			if (eMenuEntry == MENU_ENTRY_EXIT)
 			{
-				eBfo = USB;
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print("USB  ");
+				eMenuEntry = MENU_ENTRY_NONE;
 			}
-			else if (eBfo == USB)
-			{
-				eBfo = LSB;
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print("LSB  ");
-			}*/
-			freq2selected = 0;
-		}
-
-		break;
+			break;
 	}
-	
-#if 0
-	if (!freq2selected)
-	{
-		if (last_freq != frequency.hz) {
-			sprintf(buffer, "%lu    ", frequency.hz);
-			frequency_commas(buffer);
-			lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
-			last_freq = frequency.hz;
-			lcd_print(buffer);
-		}
-	}
-	else
-	{
-		if (last_freq2 != frequency2.hz)
-		{
-			sprintf(buffer, "%lu    ", frequency2.hz);
-			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-			last_freq2 = frequency2.hz;
-			frequency_commas(buffer);
-			lcd_print(buffer);
-		}
-	}
-#endif
 }
 
 
@@ -377,9 +417,6 @@ frequency_init(void)
 {
 	frequency.hz = 3705000;
 	frequency.step = 1000; // TODO: cannot be 50000 for example
-	
-	frequency2.hz = 9996300;//10000000;
-	frequency2.step = 1000;
 }
 
 int main(void)
@@ -389,13 +426,9 @@ int main(void)
 	uint16_t zzz = 0;
 	uint16_t last_push = 0;
 
-// power the display on
-DDRB = 0b00000001;
-PORTB = 0b00000001;
-
-// turn the backlight on (PD7)
-//DDRD = 0b10000000;
-//PORTD = 0b10000000;
+	// turn the backlight
+	DDRB = 0b00000001;
+	PORTB = 0b00000001;
 
 //	spi_init();
 //	extern void fnRFPlatformInit(void);
@@ -404,25 +437,9 @@ PORTB = 0b00000001;
 	frequency_init();
 	i2cInit();
 	set_freq();
-//	si5351aSetFrequency1(frequency.hz);
-//	si5351aSetFrequency2(frequency2.hz);
 
-//	dds_init(frequency.hz);
-//	dac_init();
-//	dac_write(15);
 	adc_init();
 	encoder_init();
-
-
-//	sprintf(buffer, "%lu    ", frequency.hz);
-//	frequency_commas(buffer);
-//	lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_FREQ_POSITION);
-//	lcd_print(buffer);
-//
-//	sprintf(buffer, "%lu    ", frequency2.hz);
-//	lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//	frequency_commas(buffer);
-//	lcd_print(buffer);
 
 	sei();
 
@@ -486,7 +503,7 @@ PORTB = 0b00000001;
 			{
 				event = PUSH_BTN;
 				push = 0;
-				last_push = 65535;
+				last_push = 20000;
 			}
 		} else {
 			/* if the time is not expired, then clear the PUSH event */
