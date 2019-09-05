@@ -25,10 +25,14 @@ typedef enum IF_OPERATION_tag {
 
 // TODO these should be stored in eeprom
 #define IF_CENTER 9998250
-#define IF_ECART 2500
+#define IF_ECART 4000
 
 static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;
+
+
+
+static int32_t offset_freq = 0;
 
 
 struct frequency
@@ -140,6 +144,10 @@ void set_freq(void)
 	}
 	else return; //TODO fail
 
+	//TODO: move these
+	vfo_freq += offset_freq;
+	bfo_freq += offset_freq;
+	
 	/* Write BFO freq to synthesis chip */
 	if (last_bfo_freq != bfo_freq)
 	{
@@ -227,8 +235,23 @@ uint32_t tmp;
 		{
 			//frequency2.hz += frequency2.step;
 			//si5351aSetFrequency2(frequency2.hz);
-			if (eBfo == LSB) eBfo = USB;
-			else if (eBfo == USB) eBfo = LSB;
+//			if (eBfo == LSB)
+//			{
+//				eBfo = USB;
+//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+//				lcd_print("USB  ");
+//			}
+//			else if (eBfo == USB)
+//			{
+//				eBfo = LSB;
+//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+//				lcd_print("LSB  ");
+//			}
+			offset_freq += 100;
+			set_freq();
+			sprintf(buffer, "%li    ", offset_freq);
+			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+			lcd_print(buffer);
 		}
 
 		break;
@@ -244,8 +267,24 @@ uint32_t tmp;
 		{
 			//frequency2.hz -= frequency2.step;
 			//si5351aSetFrequency2(frequency2.hz);
-			if (eBfo == LSB) eBfo = USB;
-			else if (eBfo == USB) eBfo = LSB;
+//			if (eBfo == LSB)
+//			{
+//				eBfo = USB;
+//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+//				lcd_print("USB  ");
+//			}
+//			else if (eBfo == USB)
+//			{
+//				eBfo = LSB;
+//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+//				lcd_print("LSB  ");
+//			}
+			
+			offset_freq -= 100;
+			set_freq();
+			sprintf(buffer, "%li    ", offset_freq);
+			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+			lcd_print(buffer);
 		}
 		break;
 
@@ -292,7 +331,7 @@ uint32_t tmp;
 //			lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 //			frequency_commas(buffer);
 //			lcd_print(buffer);
-			if (eBfo == LSB)
+/*			if (eBfo == LSB)
 			{
 				eBfo = USB;
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
@@ -303,7 +342,7 @@ uint32_t tmp;
 				eBfo = LSB;
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				lcd_print("LSB  ");
-			}
+			}*/
 			freq2selected = 0;
 		}
 
