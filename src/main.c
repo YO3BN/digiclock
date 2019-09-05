@@ -218,10 +218,6 @@ clear_events(void)
 static void inline
 process_event(void)
 {
-	static uint32_t last_freq = 0;
-	static int32_t last_freq2 = 0;
-	uint32_t tmp;
-
 	if (!event) return;
 
 	char buffer[32];
