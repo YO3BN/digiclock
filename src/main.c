@@ -59,6 +59,8 @@ struct frequency
 uint8_t freq2selected = 0;
 
 static volatile uint8_t event = 0;
+extern volatile uint8_t keypad_event = 0;
+
 #define	DIAL_UP		1
 #define DIAL_DOWN	2
 #define PUSH_BTN	3
@@ -422,18 +424,19 @@ int main(void)
 	uint16_t zzz = 0;
 	uint16_t last_push = 0;
 
-	// turn the backlight
+	// turn on the backlight
 	DDRB = 0b00000001;
 	PORTB = 0b00000001;
 
 //	spi_init();
 //	extern void fnRFPlatformInit(void);
 //	fnRFPlatformInit();
+
 	lcd_init(LCD_SET_TWO_LINES);
 	frequency_init();
 	i2cInit();
 	set_freq();
-
+	keypad_init();
 	adc_init();
 	encoder_init();
 
@@ -455,6 +458,11 @@ int main(void)
 		}
 
 		
+		if (!event && keypad_event)
+		{
+			event = keypad_event;
+		}
+
 		if (isr != a )
 		{
 			if (isr == 2 || isr == 0 || isr == 1)
