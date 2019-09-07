@@ -50,13 +50,24 @@
 #define KEYPAD_COL_FOUR_PORT		PORTD
 #define KEYPAD_COL_FOUR_DDR			DDRD
 
+#define KEYPAD_ROW_PIN					PINC
 
 /* Define the ISR handler */
 #define KEYPAD_ISR_HANDLER			PCINT2_vect
 
+#define KEYPAD_PCIE					PCIE2
+#define KEYPAD_PCMSK				PCMSK2
+#define KEYPAD_PCIF					PCIF2
+
 /* Function prototypes */
 void keypad_init(void);
-
+void inline keypad_isr_enable(void);
+void inline keypad_isr_disable(void);
+char keypad_get_key(void);
+static void keypad_pull_rows_up(void);
+static void keypad_pull_cols_up(void);
+static void keypad_set_rows_low(void);
+static void keypad_set_cols_low(void);
 
 
 #endif /* SRC_KEYPAD_H_ */

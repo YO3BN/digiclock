@@ -1,13 +1,15 @@
 
-
+#include <stdio.h>
+#include <string.h>
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
-#include <stdio.h>
+
 #include "lcd.h"
 #include "mcu.h"
 #include "spi.h"
+#include "keypad.h"
 
 
 typedef enum BFO_MODE_tag {
@@ -59,11 +61,12 @@ struct frequency
 uint8_t freq2selected = 0;
 
 static volatile uint8_t event = 0;
-extern volatile uint8_t keypad_event = 0;
+extern volatile uint8_t keypad_event;
 
 #define	DIAL_UP		1
 #define DIAL_DOWN	2
 #define PUSH_BTN	3
+#define KEYPAD		4
 
 #define LCD_FREQ_POSITION	7
 #define LCD_SMTR_POSITION	0x40
@@ -210,6 +213,12 @@ void set_freq(void)
 	return;
 }
 
+
+static void process_keypad(char c)
+{
+
+}
+
 static void inline
 clear_events(void)
 {
@@ -224,6 +233,14 @@ process_event(void)
 
 	char buffer[32];
 	switch (event) {
+		case KEYPAD:
+			*buffer = keypad_get_key();
+			if (*buffer)
+			{
+				process_keypad(*buffer);
+			}
+			break;
+
 		case DIAL_UP:
 			switch (eMenuEntry)
 			{
@@ -460,7 +477,7 @@ int main(void)
 		
 		if (!event && keypad_event)
 		{
-			event = keypad_event;
+			event = KEYPAD;
 		}
 
 		if (isr != a )

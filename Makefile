@@ -22,6 +22,7 @@ all:
 		$(SRCDIR)/encoder.c			\
 		$(SRCDIR)/adc.c				\
 		$(SRCDIR)/voltmeter.c			\
+		$(SRCDIR)/keypad.c			\
 		Si5351_ex/si5351a.c			\
 		Si5351_ex/i2c.c				\
 		$(LIBS)
