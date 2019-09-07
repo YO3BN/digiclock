@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <avr/io.h>
 #include <util/delay.h>
@@ -216,7 +217,64 @@ void set_freq(void)
 
 static void process_keypad(char c)
 {
+	static char buffer[16];
+	static char *ptr = buffer;
 
+	/* Check for special keys */
+	switch (c)
+	{
+
+	case 'A':
+		//TODO
+		break;
+
+	case 'B':
+		//TODO
+		break;
+
+	case 'C':
+		//TODO
+		break;
+
+	case 'D':
+		//TODO
+		break;
+
+	case '#':
+		//TODO beautify/optimize this
+		if (atol(buffer))
+		{
+			frequency.hz = atol(buffer);
+			set_freq();
+			memset(buffer, 0, sizeof(buffer));
+			ptr = buffer;
+			return;
+		}
+		break;
+
+	case '*':
+		//TODO
+		break;
+
+	default:
+		if (isdigit(c))
+		{
+			*ptr = c;
+			ptr++;
+
+			/* check overflow */
+			if (ptr == buffer[sizeof(buffer)-1])
+			{
+				ptr = buffer;
+				*ptr = c;
+				ptr++;
+			}
+			*ptr = '\0';
+		}
+		break;
+	}
+
+	show_freq(buffer);
 }
 
 static void inline
