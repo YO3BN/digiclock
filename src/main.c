@@ -214,8 +214,8 @@ void set_freq(void)
 		last_vfo_freq = vfo_freq;
 	}
 
-	/* Write freq to display */
-	sprintf(buffer, "%lu", frequency.hz);
+	/* Write freq to display in KHz units */
+	sprintf(buffer, "%lu", frequency.hz / 1000);
 	show_freq(buffer);
 
 	return;
@@ -251,7 +251,8 @@ static void process_keypad(char c)
 		//TODO beautify/optimize this
 		if (atol(buffer))
 		{
-			frequency.hz = atol(buffer);
+			/* freq enetered in KHz units */
+			frequency.hz = atol(buffer) * 1000;
 			set_freq();
 			memset(buffer, 0, sizeof(buffer));
 			ptr = buffer;
