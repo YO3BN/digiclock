@@ -112,6 +112,13 @@ void show_freq(const char *s)
 		}
 		p--;
 	}
+
+	/* clear the rest of frequency field */
+	//TODO: hardcoded 5 is the fifth character on the screen, after voltmeter */
+	while (lcd_freq_pos >= 5)
+	{
+		putch_freq(' ', lcd_freq_pos--);
+	}
 }
 
 
