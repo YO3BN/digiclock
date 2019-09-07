@@ -582,7 +582,7 @@ int main(void)
 			{
 				event = PUSH_BTN;
 				push = 0;
-				last_push = 20000;
+				last_push = 6000;
 			}
 		} else {
 			/* if the time is not expired, then clear the PUSH event */
