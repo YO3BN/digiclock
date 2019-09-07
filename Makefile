@@ -4,7 +4,7 @@ VERSION=\"v0.1\"
 
 BINDIR=bin
 SRCDIR=src
-INCDIR=../avr-dev/drivers/hd44780/include/
+INCDIR=.
 LIBS=hd44780_atmega1284_1000000.a
 
 CC=avr-gcc
