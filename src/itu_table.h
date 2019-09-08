@@ -23,7 +23,7 @@
 #define BAND_STS	0x0200
 #define BAND_AST	0x0400
 #define BAND_MET	0x0800
-#define BAND_SAR	0x1000
+#define BAND_SRE	0x1000
 #define BAND_MIL	0x2000
 
 
@@ -39,7 +39,7 @@
 #define BAND_FIX_STR	"FIX "
 #define BAND_MOB_STR	"MOB "
 #define BAND_DSC_STR	"DSC "
-#define BAND_SAR_STR	"SAR "
+#define BAND_SRE_STR	"SRE "
 #define BAND_LOC_STR	"LOC "
 
 typedef struct

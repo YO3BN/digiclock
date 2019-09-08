@@ -66,7 +66,7 @@ static ITU_Band ItuBand[] =
 		{2194,	BAND_FIX | BAND_MOB},
 		{2300,	BAND_FIX | BAND_MOB | BAND_BCT},
 		{2498,	BAND_STS},
-		{2501,	BAND_STS | BAND_SAR},
+		{2501,	BAND_STS | BAND_SRE},
 		{2502,	BAND_FIX | BAND_MOB},
 		{2625,	BAND_MAR | BAND_NAV},
 		{2650,	BAND_FIX | BAND_MOB},
@@ -79,14 +79,14 @@ static ITU_Band ItuBand[] =
 		{3900,	BAND_AER},
 		{3950,	BAND_FIX | BAND_BCT},
 		{4000,	BAND_FIX | BAND_MAR},
-		{4063,	BAND_MAR},
+		{4063,	BAND_MAR | BAND_DSC},
 		{4438,	BAND_FIX | BAND_MOB | BAND_LOC},
 		{4488,	BAND_FIX | BAND_MOB},
 		{4650,	BAND_AER},
 		{4750,	BAND_AER | BAND_BCT | BAND_FIX | BAND_MOB},
 		{4850,	BAND_BCT | BAND_FIX | BAND_MOB},
 		{4995,	BAND_STS},
-		{5003,	BAND_STS | BAND_SAR},
+		{5003,	BAND_STS | BAND_SRE},
 		{5005,	BAND_FIX | BAND_BCT},
 		{5060,	BAND_FIX | BAND_MOB},
 		{5250,	BAND_FIX | BAND_MOB | BAND_LOC},
@@ -97,14 +97,14 @@ static ITU_Band ItuBand[] =
 		{5480,	BAND_AER},
 		{5730,	BAND_FIX | BAND_MOB},
 		{5900,	BAND_BCT},
-		{6200,	BAND_MAR},
+		{6200,	BAND_MAR | BAND_DSC},
 		{6525,	BAND_AER},
 		{6765,	BAND_FIX | BAND_MOB},
 		{7000,	BAND_AMT},
 		{7200,	BAND_BCT},
 		{7450,	BAND_FIX | BAND_MOB},
 		{8100,	BAND_FIX | BAND_MAR},
-		{8195,	BAND_MAR},
+		{8195,	BAND_MAR | BAND_DSC},
 		{8815,	BAND_AER},
 		{9040,	BAND_FIX},
 		{9305,	BAND_FIX | BAND_LOC},
@@ -112,7 +112,7 @@ static ITU_Band ItuBand[] =
 		{9400,	BAND_BCT},
 		{9900,	BAND_FIX},
 		{9995,	BAND_STS},
-		{10003,	BAND_STS | BAND_SAR},
+		{10003,	BAND_STS | BAND_SRE},
 		{10005,	BAND_AER},
 		{10100,	BAND_FIX | BAND_AMT},
 		{10150,	BAND_FIX | BAND_MOB},
@@ -120,7 +120,7 @@ static ITU_Band ItuBand[] =
 		{11400,	BAND_FIX},
 		{11600,	BAND_BCT},
 		{12100,	BAND_FIX},
-		{12230,	BAND_MAR},
+		{12230,	BAND_MAR | BAND_DSC},
 		{13200,	BAND_AER},
 		{13360,	BAND_FIX | BAND_AST},
 		{13410,	BAND_FIX | BAND_MOB},
@@ -206,8 +206,8 @@ static void get_itu_title(uint16_t index, char *buffer)
 			strcat(buffer, BAND_DSC_STR);
 			break;
 
-		case BAND_SAR:
-			strcat(buffer, BAND_SAR_STR);
+		case BAND_SRE:
+			strcat(buffer, BAND_SRE_STR);
 			break;
 
 		case BAND_LOC:

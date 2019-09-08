@@ -44,6 +44,7 @@ typedef enum eMENU_ENTRY_tag
 	MENU_ENTRY_BFO_MODE,
 	MENU_ENTRY_BFO_OFFSET,
 	MENU_ENTRY_BACKLIGHT,
+	MENU_ENTRY_SICLK,
 	MENU_ENTRY_EXIT,
 }eMENU_ENTRY;
 
@@ -64,6 +65,7 @@ uint8_t freq2selected = 0;
 
 static volatile uint8_t event = 0;
 extern volatile uint8_t keypad_event;
+extern uint32_t xtalFreq;
 
 #define	DIAL_UP		1
 #define DIAL_DOWN	2
@@ -116,7 +118,7 @@ void show_freq(const char *s)
 
 	/* clear the rest of frequency field */
 	//TODO: hardcoded 5 is the fifth character on the screen, after voltmeter */
-	while (lcd_freq_pos >= 7)
+	while (lcd_freq_pos >= 9)
 	{
 		putch_freq(' ', lcd_freq_pos--);
 	}
@@ -124,7 +126,7 @@ void show_freq(const char *s)
 
 
 
-void set_freq(void)
+void set_freq(char force)
 {
 	char buffer[16];
 	uint32_t vfo_freq = frequency.hz;
@@ -132,6 +134,12 @@ void set_freq(void)
 
 	static uint32_t last_vfo_freq = 0;
 	static uint32_t last_bfo_freq = 0;
+
+	if (force)
+	{
+		last_vfo_freq = 0;
+		last_bfo_freq = 0;
+	}
 
 	/* Adjust value of VFO FREQ to Intermediate Frequency Center */
 	switch (eIFOp)
@@ -234,10 +242,18 @@ static void process_keypad(char c)
 
 	case 'A':
 		//TODO
+		eBfo = USB;
+		set_freq(0);
+		show_lsb_usb();
+		return;
 		break;
 
 	case 'B':
 		//TODO
+		eBfo = LSB;
+		set_freq(0);
+		show_lsb_usb();
+		return;
 		break;
 
 	case 'C':
@@ -254,7 +270,7 @@ static void process_keypad(char c)
 		{
 			/* freq enetered in KHz units */
 			frequency.hz = atol(buffer) * 1000;
-			set_freq();
+			set_freq(0);
 			memset(buffer, 0, sizeof(buffer));
 			ptr = buffer;
 			return;
@@ -263,6 +279,11 @@ static void process_keypad(char c)
 
 	case '*':
 		//TODO
+		if (strlen(buffer) > 0)
+		{
+			buffer[strlen(buffer) - 1] = '\0';
+			ptr--;
+		}
 		break;
 
 	default:
@@ -313,7 +334,7 @@ process_event(void)
 			{
 			case MENU_ENTRY_FREQ_SET:
 				frequency.hz += frequency.step;
-				set_freq();
+				set_freq(0);
 				break;
 
 			case MENU_ENTRY_FREQ_CURSOR:
@@ -332,7 +353,7 @@ process_event(void)
 
 			case MENU_ENTRY_IF_ECART:
 				IfEcart += 100;
-				set_freq();
+				set_freq(0);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
 				lcd_print(buffer);
@@ -340,7 +361,7 @@ process_event(void)
 
 			case MENU_ENTRY_BFO_MODE:
 				eBfo = USB;
-				set_freq();
+				set_freq(0);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				sprintf(buffer, "BFO: USB     ");
 				lcd_print(buffer);
@@ -349,7 +370,7 @@ process_event(void)
 
 			case MENU_ENTRY_BFO_OFFSET:
 				offset_freq += 100;
-				set_freq();
+				set_freq(0);
 				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				lcd_print(buffer);
@@ -365,10 +386,18 @@ process_event(void)
 				lcd_print(buffer);
 				break;
 
-			default:
-				sprintf(buffer, "NOT IMPLEMENTED     ");
+			case MENU_ENTRY_SICLK:
+				xtalFreq += frequency.step;
+				set_freq(1);
+				sprintf(buffer, "SICLK: %lu", xtalFreq);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				lcd_print(buffer);
+				break;
+
+			default:
+//				sprintf(buffer, "NOT IMPLEMENTED     ");
+//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+//				lcd_print(buffer);
 				break;
 			}
 
@@ -380,7 +409,7 @@ process_event(void)
 			{
 			case MENU_ENTRY_FREQ_SET:
 				frequency.hz -= frequency.step;
-				set_freq();
+				set_freq(0);
 				break;
 
 			case MENU_ENTRY_FREQ_CURSOR:
@@ -399,7 +428,7 @@ process_event(void)
 
 			case MENU_ENTRY_IF_ECART:
 				IfEcart -= 100;
-				set_freq();
+				set_freq(0);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
 				lcd_print(buffer);
@@ -407,7 +436,7 @@ process_event(void)
 
 			case MENU_ENTRY_BFO_MODE:
 				eBfo = LSB;
-				set_freq();
+				set_freq(0);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				sprintf(buffer, "BFO: LSB     ");
 				lcd_print(buffer);
@@ -416,7 +445,7 @@ process_event(void)
 
 			case MENU_ENTRY_BFO_OFFSET:
 				offset_freq -= 100;
-				set_freq();
+				set_freq(0);
 				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				lcd_print(buffer);
@@ -432,10 +461,18 @@ process_event(void)
 				lcd_print(buffer);
 				break;
 
-			default:
-				sprintf(buffer, "NOT IMPLEMENTED     ");
+			case MENU_ENTRY_SICLK:
+				xtalFreq -= frequency.step;
+				set_freq(1);
+				sprintf(buffer, "SICLK: %lu", xtalFreq);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				lcd_print(buffer);
+				break;
+
+			default:
+//				sprintf(buffer, "NOT IMPLEMENTED     ");
+//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+//				lcd_print(buffer);
 				break;
 			}
 		break;
@@ -479,6 +516,12 @@ process_event(void)
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				lcd_print(buffer);
 				break;
+				
+			case MENU_ENTRY_SICLK:
+				sprintf(buffer, "SICLK: %lu", xtalFreq);
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
 
 			default:
 				sprintf(buffer, "                   ");
@@ -501,11 +544,11 @@ void show_lsb_usb(void)
 	lcd_send_instr(LCD_INSTR_SET_DDRAM | 6);
 	if (eBfo == USB)
 	{
-		lcd_send_data('U');
+		lcd_print("USB");
 	}
 	else if (eBfo == LSB)
 	{
-		lcd_send_data('L');
+		lcd_print("LSB");
 	}
 }
 
@@ -535,7 +578,7 @@ int main(void)
 	lcd_init(LCD_SET_TWO_LINES);
 	frequency_init();
 	i2cInit();
-	set_freq();
+	set_freq(0);
 	keypad_init();
 	adc_init();
 	encoder_init();
@@ -612,7 +655,7 @@ int main(void)
 			{
 				event = PUSH_BTN;
 				push = 0;
-				last_push = 6000;
+				last_push = 10000;
 			}
 		} else {
 			/* if the time is not expired, then clear the PUSH event */

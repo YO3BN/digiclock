@@ -9,4 +9,5 @@ How to flash:
 =============
 
 sudo avrdude -c usbtiny -p m1284 -U flash:w:./bin/firmware.hex:i
+avrdude -P /dev/ttyUSB0 -c stk500v1 -b9600 -p m1284 -U flash:w:bin/firmware.hex:i
 

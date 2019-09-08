@@ -1,13 +1,1 @@
 
-HARDWARE:
----------
-- Temperature reading ??
-
-
-SOFTWARE:
----------
-- Frequency digit select.
-- Frequency band limits.
-- Menu items.
-- Lock input.
-- check spi enabled in dds/dac functions
