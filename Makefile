@@ -23,6 +23,7 @@ all:
 		$(SRCDIR)/adc.c				\
 		$(SRCDIR)/voltmeter.c			\
 		$(SRCDIR)/keypad.c			\
+		$(SRCDIR)/itu_table.c		\
 		Si5351_ex/si5351a.c			\
 		Si5351_ex/i2c.c				\
 		$(LIBS)

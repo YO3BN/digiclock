@@ -11,6 +11,7 @@
 #include "mcu.h"
 #include "spi.h"
 #include "keypad.h"
+#include "itu_table.h"
 
 
 typedef enum BFO_MODE_tag {
@@ -217,7 +218,7 @@ void set_freq(void)
 	/* Write freq to display in KHz units */
 	sprintf(buffer, "%lu", frequency.hz / 1000);
 	show_freq(buffer);
-
+	show_itu(frequency.hz / 1000);
 	return;
 }
 
