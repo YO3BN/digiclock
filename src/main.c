@@ -116,7 +116,7 @@ void show_freq(const char *s)
 
 	/* clear the rest of frequency field */
 	//TODO: hardcoded 5 is the fifth character on the screen, after voltmeter */
-	while (lcd_freq_pos >= 5)
+	while (lcd_freq_pos >= 7)
 	{
 		putch_freq(' ', lcd_freq_pos--);
 	}
@@ -344,6 +344,7 @@ process_event(void)
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				sprintf(buffer, "BFO: USB     ");
 				lcd_print(buffer);
+				show_lsb_usb();
 				break;
 
 			case MENU_ENTRY_BFO_OFFSET:
@@ -410,6 +411,7 @@ process_event(void)
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				sprintf(buffer, "BFO: LSB     ");
 				lcd_print(buffer);
+				show_lsb_usb();
 				break;
 
 			case MENU_ENTRY_BFO_OFFSET:
@@ -494,6 +496,20 @@ process_event(void)
 }
 
 
+void show_lsb_usb(void)
+{
+	lcd_send_instr(LCD_INSTR_SET_DDRAM | 6);
+	if (eBfo == USB)
+	{
+		lcd_send_data('U');
+	}
+	else if (eBfo == LSB)
+	{
+		lcd_send_data('L');
+	}
+}
+
+
 static void inline
 frequency_init(void)
 {
@@ -534,11 +550,16 @@ int main(void)
 	{
 		if (zzz++ == 65535) {
 			zzz = 0;
+			
 			adc_value = adc_get_value();
 			if (adc_value != -1) {
 				show_voltage(adc_value);
 			}
 			adc_start_conversion(PA0);
+			
+			//TODO move this
+			show_lsb_usb();
+			
 		}
 
 		

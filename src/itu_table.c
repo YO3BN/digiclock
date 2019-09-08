@@ -24,7 +24,7 @@ static ITU_Band ItuBand[] =
 		{9,		BAND_MET | BAND_NAV},
 		{11,	BAND_NAV},
 		{14,	BAND_FIX | BAND_MAR},
-		{20,	BAND_FIX | BAND_MAR | BAND_STS},
+		{20,	BAND_STS},
 		{21,	BAND_FIX | BAND_MAR},
 		{70,	BAND_NAV},
 		{72,	BAND_FIX | BAND_MAR | BAND_NAV},
