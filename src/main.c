@@ -293,7 +293,7 @@ static void process_keypad(char c)
 			ptr++;
 
 			/* check overflow */
-			if (ptr == buffer[sizeof(buffer)-1])
+			if (ptr == &buffer[sizeof(buffer)-1])
 			{
 				ptr = buffer;
 				*ptr = c;

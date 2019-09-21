@@ -7,6 +7,7 @@
 
 
 #include <string.h>
+#include <stdint.h>
 #include "itu_table.h"
 
 #include "lcd.h"
@@ -129,26 +130,102 @@ static ITU_Band ItuBand[] =
 		{13570,	BAND_BCT},
 		{13870,	BAND_FIX | BAND_MOB},
 		{14000,	BAND_AMT},
-		
-		{0xffffff, 0},
+		{14350,	BAND_FIX | BAND_MOB},
+		{14990,	BAND_STS},
+		{15005,	BAND_STS | BAND_SRE},
+		{15010,	BAND_AER},
+		{15100,	BAND_BCT},
+		{15800,	BAND_FIX},
+		{16100,	BAND_FIX | BAND_LOC},
+		{16200,	BAND_FIX},
+		{16360,	BAND_MAR},
+		{17410,	BAND_FIX},
+		{17480,	BAND_BCT},
+		{17900,	BAND_AER},
+		{18030,	BAND_FIX},
+		{18052,	BAND_FIX | BAND_SRE},
+		{18068,	BAND_AMT},
+		{18168,	BAND_FIX | BAND_MOB},
+		{18780,	BAND_MAR},
+		{18900,	BAND_BCT},
+		{19020,	BAND_FIX},
+		{19680,	BAND_MAR},
+		{19800,	BAND_FIX},
+		{19990,	BAND_STS | BAND_SRE},
+		{19995,	BAND_STS},
+		{20010,	BAND_FIX | BAND_MOB},
+		{21000,	BAND_AMT},
+		{21450,	BAND_BCT},
+		{21850,	BAND_FIX},
+		{21924,	BAND_AER},
+		{22000,	BAND_MAR},
+		{22855,	BAND_FIX},
+		{23000,	BAND_FIX | BAND_MOB},
+		{23200,	BAND_AER | BAND_FIX},
+		{23350,	BAND_FIX | BAND_MOB},
+		{24450,	BAND_FIX | BAND_MOB | BAND_LOC},
+		{24600,	BAND_FIX | BAND_MOB},
+		{24890,	BAND_AMT},
+		{24990,	BAND_STS},
+		{25005,	BAND_STS | BAND_SRE},
+		{25010,	BAND_FIX | BAND_MOB},
+		{25070,	BAND_MAR},
+		{25210,	BAND_FIX | BAND_MOB},
+		{25550,	BAND_AST},
+		{25670,	BAND_BCT},
+		{26100,	BAND_MAR},
+		{26175,	BAND_FIX | BAND_MOB},
+		{26200,	BAND_FIX | BAND_MOB | BAND_LOC},
+		{26350,	BAND_FIX | BAND_MOB},
+		{27500,	BAND_FIX | BAND_MOB | BAND_MET},
+		{28000,	BAND_AMT},
+		{29700,	BAND_FIX | BAND_MOB},
+		{30000,	0},
 };
 
-
-
-
-static uint16_t get_itu_index(int32_t freq)
+/*
+ * Find the Index in the ITU Table.
+ *
+ * Based on binary search.
+ * Algorithm complexity: O(log2(N)+1)
+ */
+static uint8_t get_itu_index(uint16_t freq)
 {
-	uint16_t i = 0;
+	/*
+	 * TODO: when table reach more than 255 entries,
+	 * the following types should the extended to 16 bits.
+	 */
+	uint8_t hi = 0;
+	uint8_t lo = 0;
 
-	/* Find band */
-	while (freq >= ItuBand[i].bottom_freq)
+	uint8_t last_mid = 0;
+	uint8_t mid = 0;
+
+	hi = sizeof(ItuBand) / sizeof(ItuBand[0]);
+
+	for (;;)
 	{
-		i++;
+		mid = (hi + lo) / 2;
+
+		/*
+		 * When the same element is found over and over again,
+		 * that means it found the right index.
+		 */
+		if (mid == last_mid)
+			break;
+
+		if (freq >= ItuBand[mid].bottom_freq)
+			lo = mid;
+		else hi = mid;
+
+		last_mid = mid;
 	}
-	return i - 1;
+
+	return mid;
 }
 
-static void get_itu_title(uint16_t index, char *buffer)
+
+static void get_itu_title(uint8_t index, char *buffer)
 {
 	uint8_t x;
 	uint16_t mask = 1;
@@ -215,6 +292,7 @@ static void get_itu_title(uint16_t index, char *buffer)
 			break;
 
 		default:
+			/* Do nothing here !! */
 			break;
 		}
 	}
@@ -225,31 +303,30 @@ static void get_itu_title(uint16_t index, char *buffer)
 void show_itu(int32_t freq)
 {
 	static char buffer[32] = "";
-	static uint16_t last_index = 0;
-	uint16_t itu_index = 0;
+	static uint8_t last_index = 0;
+	uint8_t itu_index = 0;
 	uint8_t	x;
 
 	itu_index = get_itu_index(freq);
 
-	if (itu_index != last_index)
+	if (itu_index == last_index) return;
+
+	/* Clear previous buffer */
+	memset(buffer, 0, sizeof(buffer));
+	get_itu_title(itu_index, buffer);
+
+	//TODO move into display_layout.c
+	lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+	lcd_print(buffer);
+
+	/* Fill remaining chars on display with spaces */
+	//FIXME - 16 hardcoded display size
+	for (x = 0; x < 16 - strlen(buffer); x++)
 	{
-		/* Clear previous buffer */
-		memset(buffer, 0, sizeof(buffer));
-		get_itu_title(itu_index, buffer);
-		
-		//TODO move into display_layout.c
-		lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-		lcd_print(buffer);
-		
-		/* Fill remaining chars on display with spaces */
-		//FIXME - 16 hardcoded display size
-		for (x = 0; x < 16 - strlen(buffer); x++)
-		{
-			lcd_send_data(' ');
-		}
-			
-		last_index = itu_index;
+		lcd_send_data(' ');
 	}
+
+	last_index = itu_index;
 }
 
 

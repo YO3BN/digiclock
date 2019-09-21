@@ -2,7 +2,7 @@
  * itu_table.h
  *
  *  Created on: Sep 7, 2019
- *      Author: natrix
+ *      Author: Cristian Ionita
  */
 
 #include <stdint.h>
@@ -26,7 +26,7 @@
 #define BAND_SRE	0x1000
 #define BAND_MIL	0x2000
 
-
+#define BAND_UNK_STR	"UNK "
 #define BAND_MAR_STR	"MAR "
 #define BAND_MIL_STR	"MIL "
 #define BAND_AER_STR	"AER "
@@ -42,7 +42,7 @@
 #define BAND_SRE_STR	"SRE "
 #define BAND_LOC_STR	"LOC "
 
-typedef struct
+typedef struct __attribute__ ((packed))
 {
 	uint32_t bottom_freq;
 	uint16_t title;
