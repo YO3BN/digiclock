@@ -35,6 +35,17 @@ static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;
 static int16_t IfEcart = IF_ECART;
 
+
+typedef enum
+{
+	SCAN_NONE = 0,
+	SCAN_UP,
+	SCAN_DOWN,
+} eScan;
+
+static volatile eScan scan = SCAN_NONE;
+static uint16_t scan_time = 1500;
+
 typedef enum eMENU_ENTRY_tag
 {
 	MENU_ENTRY_NONE = 0,
@@ -45,6 +56,7 @@ typedef enum eMENU_ENTRY_tag
 	MENU_ENTRY_BFO_OFFSET,
 	MENU_ENTRY_BACKLIGHT,
 	MENU_ENTRY_SICLK,
+	MENU_ENTRY_SCNTIME,
 	MENU_ENTRY_EXIT,
 }eMENU_ENTRY;
 
@@ -257,11 +269,19 @@ static void process_keypad(char c)
 		break;
 
 	case 'C':
-		//TODO
+		if (scan == SCAN_UP)
+			scan = SCAN_NONE;
+		else scan = SCAN_UP;
+
+		return;
 		break;
 
 	case 'D':
-		//TODO
+		if (scan == SCAN_DOWN)
+			scan = SCAN_NONE;
+		else scan = SCAN_DOWN;
+
+		return;
 		break;
 
 	case '#':
@@ -394,6 +414,13 @@ process_event(void)
 				lcd_print(buffer);
 				break;
 
+			case MENU_ENTRY_SCNTIME:
+				scan_time += 50;
+				sprintf(buffer, "SCNTIME: %u    ", scan_time);
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
 			default:
 //				sprintf(buffer, "NOT IMPLEMENTED     ");
 //				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
@@ -469,6 +496,13 @@ process_event(void)
 				lcd_print(buffer);
 				break;
 
+			case MENU_ENTRY_SCNTIME:
+				scan_time -= 50;
+				sprintf(buffer, "SCNTIME: %u    ", scan_time);
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
 			default:
 //				sprintf(buffer, "NOT IMPLEMENTED     ");
 //				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
@@ -519,6 +553,12 @@ process_event(void)
 				
 			case MENU_ENTRY_SICLK:
 				sprintf(buffer, "SICLK: %lu", xtalFreq);
+				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_print(buffer);
+				break;
+
+			case MENU_ENTRY_SCNTIME:
+				sprintf(buffer, "SCNTIME: %u     ", scan_time);
 				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
 				lcd_print(buffer);
 				break;
@@ -589,11 +629,11 @@ int main(void)
 	char x = 0;
 	int16_t adc_value = 0;
 
-	for (;;)
+	for (zzz = 0;;zzz++)
 	{
-		if (zzz++ == 65535) {
+		if (zzz == 65535) {
 			zzz = 0;
-			
+
 			adc_value = adc_get_value();
 			if (adc_value != -1) {
 				show_voltage(adc_value);
@@ -602,10 +642,27 @@ int main(void)
 			
 			//TODO move this
 			show_lsb_usb();
-			
 		}
 
+		//dummy scan
+		if (scan && !(zzz % scan_time))
+		{
+			switch (scan)
+			{
+			case SCAN_UP:
+				event = DIAL_UP;
+				break;
+
+			case SCAN_DOWN:
+				event = DIAL_DOWN;
+				break;
+
+			default:
+				event = 0;
+			}
+		}
 		
+
 		if (!event && keypad_event)
 		{
 			event = KEYPAD;
