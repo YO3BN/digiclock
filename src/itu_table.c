@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "itu_table.h"
 
-#include "lcd.h"
+#include "hd44780/lcd.h"
 
 
 /*

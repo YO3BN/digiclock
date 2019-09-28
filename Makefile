@@ -5,7 +5,7 @@ VERSION=\"v0.1\"
 BINDIR=bin
 SRCDIR=src
 INCDIR=.
-LIBS=hd44780_atmega1284_1000000.a
+LIBS=
 
 CC=avr-gcc
 CFLAGS=-Wall -g3 -O2 -pipe -gstabs -std=c99 -Wl,-u,vfprintf -lprintf_flt -lm
@@ -23,7 +23,10 @@ all:
 		$(SRCDIR)/adc.c				\
 		$(SRCDIR)/voltmeter.c			\
 		$(SRCDIR)/keypad.c			\
-		$(SRCDIR)/itu_table.c		\
+		$(SRCDIR)/itu_table.c			\
+		hd44780/delay_wrapper.c			\
+		hd44780/lcd.c				\
+		hd44780/hd44780.S			\
 		Si5351_ex/si5351a.c			\
 		Si5351_ex/i2c.c				\
 		$(LIBS)

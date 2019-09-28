@@ -2,8 +2,8 @@
 #include <avr/interrupt.h>
 #include <stdio.h>
 #include <string.h>
-#include "mcu.h"
-#include "lcd.h"
+//#include "mcu.h"
+#include "hd44780/lcd.h"
 
 
 #define LCD_VOLTAGE_POSITION		0

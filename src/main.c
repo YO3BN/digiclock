@@ -7,7 +7,7 @@
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
 
-#include "lcd.h"
+#include "hd44780/lcd.h"
 #include "mcu.h"
 #include "spi.h"
 #include "keypad.h"
