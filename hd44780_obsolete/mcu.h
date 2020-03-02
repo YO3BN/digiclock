@@ -19,18 +19,18 @@
 /*
  *	Communications pins and ports must be manually set.
  */
-#define LCD_COM_INSTR_DDR			DDRD
-#define LCD_COM_INSTR_PORT			PORTD
-#define LCD_COM_DATA_DDR			DDRD
-#define LCD_COM_DATA_PORT			PORTD
-#define LCD_COM_DATA_PIN			PIND
+#define LCD_COM_INSTR_DDR			DDRB
+#define LCD_COM_INSTR_PORT			PORTB
+#define LCD_COM_DATA_DDR			DDRB
+#define LCD_COM_DATA_PORT			PORTB
+#define LCD_COM_DATA_PIN			PINB
 
 
 
 /* Instruction pins */
-#define LCD_COM_PIN_RS				PD1
-#define LCD_COM_PIN_RW				PD2
-#define LCD_COM_PIN_E				PD3
+#define LCD_COM_PIN_RS				PB0
+#define LCD_COM_PIN_RW				PB1
+#define LCD_COM_PIN_E				PB2
 
 
 
@@ -40,8 +40,7 @@
 ;#define LCD_COM_PIN_DB1				1
 ;#define LCD_COM_PIN_DB2				2
 ;#define LCD_COM_PIN_DB3				3
-#define LCD_COM_PIN_DB4				PD4
-#define LCD_COM_PIN_DB5				PD5
-#define LCD_COM_PIN_DB6				PD6
-#define LCD_COM_PIN_DB7				PD7
-
+#define LCD_COM_PIN_DB4				PB3
+#define LCD_COM_PIN_DB5				PB4
+#define LCD_COM_PIN_DB6				PB5
+#define LCD_COM_PIN_DB7				PB6

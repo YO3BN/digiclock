@@ -1,5 +1,5 @@
 MCU=atmega1284
-F_CPU=1000000
+F_CPU=8000000
 VERSION=\"v0.1\"
 
 BINDIR=bin
@@ -24,9 +24,7 @@ all:
 		$(SRCDIR)/voltmeter.c			\
 		$(SRCDIR)/keypad.c			\
 		$(SRCDIR)/itu_table.c			\
-		hd44780/delay_wrapper.c			\
-		hd44780/lcd.c				\
-		hd44780/hd44780.S			\
+		lcd/lcd.c					\
 		Si5351_ex/si5351a.c			\
 		Si5351_ex/i2c.c				\
 		$(LIBS)

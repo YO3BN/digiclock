@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 //#include "mcu.h"
-#include "hd44780/lcd.h"
+
+#include "../lcd/lcd.h"
 
 
 #define LCD_VOLTAGE_POSITION		0
@@ -22,8 +23,8 @@ show_voltage(const int16_t adc_val)
 	 *	it is same with the last one.
 	 */
 	if (strcmp(buffer, last_buffer)) {
-		lcd_send_instr(LCD_INSTR_SET_DDRAM | LCD_VOLTAGE_POSITION);
-		lcd_print(buffer);
+		lcd_command(LCD_SETDDRAMADDR | LCD_VOLTAGE_POSITION);
+		lcd_printf(buffer);
 		strcpy(last_buffer, buffer);
 	}
 }

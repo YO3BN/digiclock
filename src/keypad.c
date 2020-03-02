@@ -128,8 +128,9 @@ char keypad_get_key(void)
 	/* Read columns */
 	// FIXME Hardware dependent. please fix it in hardware first.
 	keypad_pin = KEYPAD_ROW_PIN & 0b00001100;
-	keypad_pin |= (PIND & 0x80) >> 6;
-	keypad_pin |= (PIND & 0x08) >> 3;
+	keypad_pin |= (PIND & 0b01000000) >> 5;
+	keypad_pin |= (PIND & 0b10000000) >> 7;
+
 	switch (keypad_pin & 0x0f)
 	{
 	case 0b00000111:
@@ -152,7 +153,7 @@ char keypad_get_key(void)
 	/* Array lookup */
 	//FIXME hardware fix rows vs cols.
 	key = keypad_4x4map[col -1][row - 1];
-	
+
 	/* Re-initialize the keypad */
 	keypad_init();
 

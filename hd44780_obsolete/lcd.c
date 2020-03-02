@@ -1,4 +1,4 @@
-#include "lcd.h"
+#include "../hd44780_obsolete/lcd.h"
 
 void lcd_print(const char *p)
 {

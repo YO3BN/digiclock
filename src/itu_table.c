@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "itu_table.h"
 
-#include "hd44780/lcd.h"
+#include "../lcd/lcd.h"
 
 
 /*
@@ -316,14 +316,14 @@ void show_itu(int32_t freq)
 	get_itu_title(itu_index, buffer);
 
 	//TODO move into display_layout.c
-	lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-	lcd_print(buffer);
+	lcd_command(LCD_SETDDRAMADDR | 0x40);
+	lcd_printf(buffer);
 
 	/* Fill remaining chars on display with spaces */
 	//FIXME - 16 hardcoded display size
 	for (x = 0; x < 16 - strlen(buffer); x++)
 	{
-		lcd_send_data(' ');
+		lcd_write(' ');
 	}
 
 	last_index = itu_index;

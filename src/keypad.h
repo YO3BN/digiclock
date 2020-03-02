@@ -41,12 +41,12 @@
 #define KEYPAD_COL_TWO_DDR			DDRC
 
 /* Keyboard column pin properties */
-#define KEYPAD_COL_THREE			PD7
+#define KEYPAD_COL_THREE			PD6
 #define KEYPAD_COL_THREE_PORT		PORTD
 #define KEYPAD_COL_THREE_DDR		DDRD
 
 /* Keyboard column pin properties */
-#define KEYPAD_COL_FOUR				PD3
+#define KEYPAD_COL_FOUR				PD7
 #define KEYPAD_COL_FOUR_PORT		PORTD
 #define KEYPAD_COL_FOUR_DDR			DDRD
 

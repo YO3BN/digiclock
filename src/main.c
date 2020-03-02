@@ -7,7 +7,8 @@
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
 
-#include "hd44780/lcd.h"
+//#include "hd44780/lcd.h"
+#include "lcd/lcd.h"
 #include "mcu.h"
 #include "spi.h"
 #include "keypad.h"
@@ -93,8 +94,8 @@ volatile char push = 0;
 
 ISR(PCINT3_vect)
 {
-	isr = ((PIND & 0b01100000) >> 5);
-	if ((PIND & 0b00010000) == 0)
+	isr = ((PIND & 0b00110000) >> 4);
+	if ((PIND & 0b00001000) == 0)
 	{
 		push = 1;
 	}
@@ -103,8 +104,8 @@ ISR(PCINT3_vect)
 
 void putch_freq(char c, char pos)
 {
-	lcd_send_instr(LCD_INSTR_SET_DDRAM | pos);
-	lcd_send_data(c);
+	lcd_command(LCD_SETDDRAMADDR | pos);
+	lcd_write(c);
 }
 
 void show_freq(const char *s)
@@ -366,25 +367,25 @@ process_event(void)
 					//TODO: change the cursor accordingly
 				}
 				//TODO remove this
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "STEP: %lu       ", frequency.step);
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_IF_ECART:
 				IfEcart += 100;
 				set_freq(0);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_BFO_MODE:
 				eBfo = USB;
 				set_freq(0);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "BFO: USB     ");
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				show_lsb_usb();
 				break;
 
@@ -392,8 +393,8 @@ process_event(void)
 				offset_freq += 100;
 				set_freq(0);
 				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_BACKLIGHT:
@@ -402,29 +403,29 @@ process_event(void)
 				PORTB = (PORTB & 0xFE) | 0x01;
 
 				sprintf(buffer, "LIGHT: ON    ");
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_SICLK:
 				xtalFreq += frequency.step;
 				set_freq(1);
 				sprintf(buffer, "SICLK: %lu", xtalFreq);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_SCNTIME:
 				scan_time += 50;
 				sprintf(buffer, "SCNTIME: %u    ", scan_time);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			default:
 //				sprintf(buffer, "NOT IMPLEMENTED     ");
-//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//				lcd_print(buffer);
+//				lcd_command(LCD_SETDDRAMADDR | 0x40);
+//				lcd_printf(buffer);
 				break;
 			}
 
@@ -448,25 +449,25 @@ process_event(void)
 					//TODO: change the cursor accordingly
 				}
 				//TODO remove this
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "STEP: %lu       ", frequency.step);
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_IF_ECART:
 				IfEcart -= 100;
 				set_freq(0);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_BFO_MODE:
 				eBfo = LSB;
 				set_freq(0);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "BFO: LSB     ");
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				show_lsb_usb();
 				break;
 
@@ -474,8 +475,8 @@ process_event(void)
 				offset_freq -= 100;
 				set_freq(0);
 				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_BACKLIGHT:
@@ -484,29 +485,29 @@ process_event(void)
 				PORTB = PORTB & 0xFE;
 
 				sprintf(buffer, "LIGHT: OFF         ");
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_SICLK:
 				xtalFreq -= frequency.step;
 				set_freq(1);
 				sprintf(buffer, "SICLK: %lu", xtalFreq);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_SCNTIME:
 				scan_time -= 50;
 				sprintf(buffer, "SCNTIME: %u    ", scan_time);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			default:
 //				sprintf(buffer, "NOT IMPLEMENTED     ");
-//				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-//				lcd_print(buffer);
+//				lcd_command(LCD_SETDDRAMADDR | 0x40);
+//				lcd_printf(buffer);
 				break;
 			}
 		break;
@@ -522,51 +523,51 @@ process_event(void)
 
 			case MENU_ENTRY_FREQ_CURSOR:
 				//TODO remove this
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "STEP: %lu       ", frequency.step);
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_IF_ECART:
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "IFWIDTH: %d     ", IfEcart);
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_BFO_MODE:
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				sprintf(buffer, "BFO: %s            ", eBfo == USB ? "USB" : "LSB");
-				lcd_print(buffer);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_BFO_OFFSET:
 				sprintf(buffer, "BFO OFFSET: %li     ", offset_freq);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_BACKLIGHT:
 				sprintf(buffer, "LIGHT: ON/OFF     ");
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 				
 			case MENU_ENTRY_SICLK:
 				sprintf(buffer, "SICLK: %lu", xtalFreq);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			case MENU_ENTRY_SCNTIME:
 				sprintf(buffer, "SCNTIME: %u     ", scan_time);
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 
 			default:
 				sprintf(buffer, "                   ");
-				lcd_send_instr(LCD_INSTR_SET_DDRAM | 0x40);
-				lcd_print(buffer);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
 				break;
 			}
 
@@ -581,14 +582,14 @@ process_event(void)
 
 void show_lsb_usb(void)
 {
-	lcd_send_instr(LCD_INSTR_SET_DDRAM | 6);
+	lcd_command(LCD_SETDDRAMADDR | 6);
 	if (eBfo == USB)
 	{
-		lcd_print("USB");
+		lcd_printf("USB");
 	}
 	else if (eBfo == LSB)
 	{
-		lcd_print("LSB");
+		lcd_printf("LSB");
 	}
 }
 
@@ -608,14 +609,17 @@ int main(void)
 	uint16_t last_push = 0;
 
 	// turn on the backlight
-	DDRB = 0b00000001;
-	PORTB = 0b00000001;
+	//DDRB = 0b00000001;
+	//PORTB = 0b00000001;
 
 //	spi_init();
 //	extern void fnRFPlatformInit(void);
 //	fnRFPlatformInit();
 
-	lcd_init(LCD_SET_TWO_LINES);
+	lcd_init();
+	lcd_on();
+	lcd_clear();
+
 	frequency_init();
 	i2cInit();
 	set_freq(0);
@@ -638,7 +642,7 @@ int main(void)
 			if (adc_value != -1) {
 				show_voltage(adc_value);
 			}
-			adc_start_conversion(PA0);
+			adc_start_conversion(PA7);
 			
 			//TODO move this
 			show_lsb_usb();
@@ -682,17 +686,17 @@ int main(void)
 				switch (byte)
 				{
 					case 0x84:
-					event = DIAL_DOWN;
+					event = DIAL_UP;
 					break;
 
 					case 0x48:
-					event = DIAL_UP;
+					event = DIAL_DOWN;
 					break;
 
 					default:
 					sprintf(buffer, "%#x ", byte);
-					lcd_send_instr(LCD_INSTR_SET_DDRAM | 0);
-					lcd_print(buffer);
+					lcd_command(LCD_SETDDRAMADDR | 0);
+					lcd_printf(buffer);
 					break;
 				}
 				byte = 0;
@@ -712,7 +716,7 @@ int main(void)
 			{
 				event = PUSH_BTN;
 				push = 0;
-				last_push = 10000;
+				last_push = 65500;
 			}
 		} else {
 			/* if the time is not expired, then clear the PUSH event */
