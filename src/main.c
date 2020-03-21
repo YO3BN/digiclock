@@ -637,6 +637,8 @@ int main(void)
 	char x = 0;
 	int16_t adc_value = 0;
 
+  show_lsb_usb();
+
 	for (zzz = 0;;zzz++)
 	{
 		if (zzz == 65535) {
@@ -647,9 +649,6 @@ int main(void)
 				show_voltage(adc_value);
 			}
 			adc_start_conversion(PA7);
-			
-			//TODO move this
-			show_lsb_usb();
 		}
 
 		//dummy scan
