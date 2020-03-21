@@ -181,11 +181,15 @@ void set_freq(char force)
 		case IF_OPER_ADD:
 			vfo_freq -= IfEcart / 2;
 			bfo_freq -= IfEcart / 2;
+		  vfo_freq += offset_freq;
+		  bfo_freq += offset_freq;
 			break;
 
 		case IF_OPER_SUB:
 			vfo_freq += IfEcart / 2;
 			bfo_freq += IfEcart / 2;
+		  vfo_freq -= offset_freq;
+		  bfo_freq -= offset_freq;
 			break;
 
 		case IF_OPER_NONE:
@@ -202,11 +206,15 @@ void set_freq(char force)
 		case IF_OPER_ADD:
 			vfo_freq += IfEcart / 2;
 			bfo_freq += IfEcart / 2;
+		  vfo_freq -= offset_freq;
+		  bfo_freq -= offset_freq;
 			break;
 
 		case IF_OPER_SUB:
 			vfo_freq -= IfEcart / 2;
 			bfo_freq -= IfEcart / 2;
+		  vfo_freq += offset_freq;
+		  bfo_freq += offset_freq;
 			break;
 
 		case IF_OPER_NONE:
@@ -218,10 +226,6 @@ void set_freq(char force)
 	}
 	else return; //TODO fail
 
-	//TODO: move these
-	vfo_freq += offset_freq;
-	bfo_freq += offset_freq;
-	
 	/* Write BFO freq to synthesis chip */
 	if (last_bfo_freq != bfo_freq)
 	{
