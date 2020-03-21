@@ -8,7 +8,7 @@ INCDIR=.
 LIBS=
 
 CC=avr-gcc
-CFLAGS=-Wall -g3 -O2 -pipe -gstabs -std=c99 -Wl,-u,vfprintf -lprintf_flt -lm
+CFLAGS=-Wall -g3 -O2 -pipe -gstabs -std=c99 -fdata-sections -ffunction-sections -Wl,--gc-sections,-u,vfprintf -lprintf_flt -lm
 
 OBJCOPY=avr-objcopy
 OBJOPT=-O ihex -j .text -j .data
