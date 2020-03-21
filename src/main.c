@@ -29,8 +29,8 @@ typedef enum IF_OPERATION_tag {
 
 
 // TODO these should be stored in eeprom
-#define IF_CENTER 9998250
-#define IF_ECART 2500
+#define IF_CENTER 9997667
+#define IF_ECART 2057
 
 static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;

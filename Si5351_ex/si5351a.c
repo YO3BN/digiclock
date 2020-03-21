@@ -10,7 +10,7 @@
 #include "i2c.h"
 #include "si5351a.h"
 
-uint32_t xtalFreq = 24999455;//25000000;
+uint32_t xtalFreq = 27000900;//25000000;
 
 //
 // Set up specified PLL with mult, num and denom
