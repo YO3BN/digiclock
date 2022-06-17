@@ -403,8 +403,8 @@ process_event(void)
 
 			case MENU_ENTRY_BACKLIGHT:
 				//TODO beautify this
-				DDRB = (DDRB & 0xFE) | 0x01;
-				PORTB = (PORTB & 0xFE) | 0x01;
+				DDRB = DDRB | 0b10000000;
+				PORTB = PORTB | 0b10000000;
 
 				sprintf(buffer, "LIGHT: ON    ");
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
@@ -485,8 +485,8 @@ process_event(void)
 
 			case MENU_ENTRY_BACKLIGHT:
 				//TODO beautify this
-				DDRB = DDRB & 0xFE;
-				PORTB = PORTB & 0xFE;
+				DDRB = DDRB & 0b01111111;
+				PORTB = PORTB & 0b01111111;
 
 				sprintf(buffer, "LIGHT: OFF         ");
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
@@ -613,8 +613,12 @@ int main(void)
 	uint16_t last_push = 0;
 
 	// turn on the backlight
-	//DDRB = 0b00000001;
-	//PORTB = 0b00000001;
+	DDRB = 0b10000000;
+	PORTB = 0b10000000;
+
+    // turn on the display
+	DDRD = 0b00000100;
+	PORTD = 0b00000100;
 
 //	spi_init();
 //	extern void fnRFPlatformInit(void);

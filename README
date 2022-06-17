@@ -11,3 +11,27 @@ How to flash:
 sudo avrdude -c usbtiny -p m1284 -U flash:w:./bin/firmware.hex:i
 avrdude -P /dev/ttyUSB0 -c stk500v1 -b9600 -p m1284 -U flash:w:bin/firmware.hex:i
 
+
+
+Read fuses (usually are shown when flashing)
+==========
+
+sudo avrdude -c usbtiny -p m1284 -U efuse:r:-:h
+sudo avrdude -c usbtiny -p m1284 -U hfuse:r:-:h
+sudo avrdude -c usbtiny -p m1284 -U lfuse:r:-:h
+
+Their value must be:
+avrdude: safemode: Fuses OK (E:FF, H:D8, L:62)
+
+The original values were:
+avrdude: safemode: Fuses OK (E:FF, H:99, L:62)
+
+
+
+
+Write Hfuse
+===========
+
+To disable JTAG and activate the bootloader section at boot:
+sudo avrdude -c usbtiny -p m1284 -U hfuse:w:0xD8:m
+
