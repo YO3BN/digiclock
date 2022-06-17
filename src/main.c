@@ -36,6 +36,7 @@ static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;
 static int16_t IfEcart = IF_ECART;
 
+extern uint32_t xtalFreq;
 
 typedef enum
 {
@@ -58,6 +59,7 @@ typedef enum eMENU_ENTRY_tag
 	MENU_ENTRY_BACKLIGHT,
 	MENU_ENTRY_SICLK,
 	MENU_ENTRY_SCNTIME,
+	MENU_ENTRY_EPROM_SAVE,
 	MENU_ENTRY_EXIT,
 }eMENU_ENTRY;
 
@@ -72,6 +74,14 @@ struct frequency
 	uint32_t hz;
 	uint32_t step;
 } frequency;
+
+
+struct eprom_data
+{
+	uint32_t home_freq;
+	uint32_t if_center;
+	uint32_t si5351_qrtz;
+} eprom_data;
 
 
 uint8_t freq2selected = 0;
@@ -247,6 +257,13 @@ void set_freq(char force)
 	return;
 }
 
+
+static void inline eprom_save(void)
+{
+	eprom_data.home_freq = frequency.hz;
+	eprom_data.si5351_qrtz = xtalFreq;
+	eeprom_write_block(&eprom_data, 0, sizeof(eprom_data));
+}
 
 static void process_keypad(char c)
 {
@@ -426,6 +443,16 @@ process_event(void)
 				lcd_printf(buffer);
 				break;
 
+			case MENU_ENTRY_EPROM_SAVE:
+				sprintf(buffer, "EPROM SAVING ...   ");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				eprom_save();
+				sprintf(buffer, "EPROM DONE         ");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
 			default:
 //				sprintf(buffer, "NOT IMPLEMENTED     ");
 //				lcd_command(LCD_SETDDRAMADDR | 0x40);
@@ -508,6 +535,12 @@ process_event(void)
 				lcd_printf(buffer);
 				break;
 
+			case MENU_ENTRY_EPROM_SAVE:
+				sprintf(buffer, "EPROM SKIPPING     ");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
 			default:
 //				sprintf(buffer, "NOT IMPLEMENTED     ");
 //				lcd_command(LCD_SETDDRAMADDR | 0x40);
@@ -568,6 +601,12 @@ process_event(void)
 				lcd_printf(buffer);
 				break;
 
+			case MENU_ENTRY_EPROM_SAVE:
+				sprintf(buffer, "EPROM SAVE?Y=UP");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
 			default:
 				sprintf(buffer, "                   ");
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
@@ -605,6 +644,24 @@ frequency_init(void)
 	frequency.step = 1000; // TODO: cannot be 50000 for example
 }
 
+
+static void
+nonvolatile_data_init(void)
+{
+	memset(&eprom_data, 0, sizeof(eprom_data));
+	eeprom_read_block(&eprom_data, 0, sizeof(eprom_data));
+
+	if (eprom_data.home_freq != 0xffffffff)
+	{
+		frequency.hz = eprom_data.home_freq;
+	}
+
+	if (eprom_data.si5351_qrtz != 0xffffffff)
+	{
+		xtalFreq = eprom_data.si5351_qrtz;
+	}
+}
+
 int main(void)
 {
 	char buffer[16];
@@ -629,6 +686,7 @@ int main(void)
 	lcd_clear();
 
 	frequency_init();
+	nonvolatile_data_init();
 	i2cInit();
 	set_freq(0);
 	keypad_init();
@@ -641,7 +699,7 @@ int main(void)
 	char x = 0;
 	int16_t adc_value = 0;
 
-  show_lsb_usb();
+	show_lsb_usb();
 
 	for (zzz = 0;;zzz++)
 	{
