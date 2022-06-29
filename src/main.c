@@ -29,12 +29,13 @@ typedef enum IF_OPERATION_tag {
 
 
 // TODO these should be stored in eeprom
-#define IF_CENTER 9997667
-#define IF_ECART 2057
+#define IF_CENTER 10700000
+#define IF_ECART 3000
 
 static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;
 static int16_t IfEcart = IF_ECART;
+static uint32_t if_center = IF_CENTER;
 
 extern uint32_t xtalFreq;
 
@@ -59,7 +60,9 @@ typedef enum eMENU_ENTRY_tag
 	MENU_ENTRY_BACKLIGHT,
 	MENU_ENTRY_SICLK,
 	MENU_ENTRY_SCNTIME,
+	MENU_ENTRY_IFCENTER,
 	MENU_ENTRY_EPROM_SAVE,
+	MENU_ENTRY_EPROM_ERASE,
 	MENU_ENTRY_EXIT,
 }eMENU_ENTRY;
 
@@ -83,8 +86,6 @@ struct eprom_data
 	uint32_t si5351_qrtz;
 } eprom_data;
 
-
-uint8_t freq2selected = 0;
 
 static volatile uint8_t event = 0;
 extern volatile uint8_t keypad_event;
@@ -153,7 +154,7 @@ void set_freq(char force)
 {
 	char buffer[16];
 	uint32_t vfo_freq = frequency.hz;
-	uint32_t bfo_freq = IF_CENTER;
+	uint32_t bfo_freq = if_center;
 
 	static uint32_t last_vfo_freq = 0;
 	static uint32_t last_bfo_freq = 0;
@@ -168,11 +169,11 @@ void set_freq(char force)
 	switch (eIFOp)
 	{
 	case IF_OPER_ADD:
-		vfo_freq += IF_CENTER;
+		vfo_freq += if_center;
 		break;
 
 	case IF_OPER_SUB:
-		vfo_freq = IF_CENTER - vfo_freq;
+		vfo_freq = if_center - vfo_freq;
 		break;
 
 	case IF_OPER_NONE:
@@ -262,6 +263,7 @@ static void inline eprom_save(void)
 {
 	eprom_data.home_freq = frequency.hz;
 	eprom_data.si5351_qrtz = xtalFreq;
+	eprom_data.if_center = if_center;
 	eeprom_write_block(&eprom_data, 0, sizeof(eprom_data));
 }
 
@@ -348,6 +350,14 @@ static void process_keypad(char c)
 
 	show_freq(buffer);
 }
+
+
+static void inline eprom_erase(void)
+{
+	memset(&eprom_data, 0xff, sizeof(eprom_data));
+	eeprom_write_block(&eprom_data, 0, sizeof(eprom_data));
+}
+
 
 static void inline
 clear_events(void)
@@ -443,12 +453,30 @@ process_event(void)
 				lcd_printf(buffer);
 				break;
 
+			case MENU_ENTRY_IFCENTER:
+				if_center += frequency.step;
+				set_freq(1);
+				sprintf(buffer, "IFCENTER: %lu    ", if_center);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
 			case MENU_ENTRY_EPROM_SAVE:
 				sprintf(buffer, "EPROM SAVING ...   ");
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
 				eprom_save();
 				sprintf(buffer, "EPROM DONE         ");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
+			case MENU_ENTRY_EPROM_ERASE:
+				sprintf(buffer, "EPROM ERASING ...   ");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				eprom_erase();
+				sprintf(buffer, "EPROM ERASE DONE ");
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
 				break;
@@ -535,8 +563,22 @@ process_event(void)
 				lcd_printf(buffer);
 				break;
 
+			case MENU_ENTRY_IFCENTER:
+				if_center -= frequency.step;
+				set_freq(1);
+				sprintf(buffer, "IFCENTER: %lu    ", if_center);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
 			case MENU_ENTRY_EPROM_SAVE:
 				sprintf(buffer, "EPROM SKIPPING     ");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
+			case MENU_ENTRY_EPROM_ERASE:
+				sprintf(buffer, "EPROM ERASE SKIP ");
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
 				break;
@@ -601,8 +643,20 @@ process_event(void)
 				lcd_printf(buffer);
 				break;
 
+			case MENU_ENTRY_IFCENTER:
+				sprintf(buffer, "IFCENTER: %lu    ", if_center);
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
 			case MENU_ENTRY_EPROM_SAVE:
 				sprintf(buffer, "EPROM SAVE?Y=UP");
+				lcd_command(LCD_SETDDRAMADDR | 0x40);
+				lcd_printf(buffer);
+				break;
+
+			case MENU_ENTRY_EPROM_ERASE:
+				sprintf(buffer, "EPROM ERASE? UP  ");
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
 				break;
@@ -659,6 +713,11 @@ nonvolatile_data_init(void)
 	if (eprom_data.si5351_qrtz != 0xffffffff)
 	{
 		xtalFreq = eprom_data.si5351_qrtz;
+	}
+
+	if (eprom_data.if_center != 0xffffffff)
+	{
+		if_center = eprom_data.if_center;
 	}
 }
 
@@ -781,7 +840,7 @@ int main(void)
 			{
 				event = PUSH_BTN;
 				push = 0;
-				last_push = 65500;
+				last_push = 8500;
 			}
 		} else {
 			/* if the time is not expired, then clear the PUSH event */
