@@ -152,7 +152,7 @@ char keypad_get_key(void)
 
 	/* Array lookup */
 	//FIXME hardware fix rows vs cols.
-	key = keypad_4x4map[col -1][row - 1];
+	key = keypad_4x4map[row - 1][col - 1];
 
 	/* Re-initialize the keypad */
 	keypad_init();
