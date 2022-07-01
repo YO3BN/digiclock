@@ -10,7 +10,7 @@
 #include "i2c.h"
 #include "si5351a.h"
 
-uint32_t xtalFreq = 27000900;//25000000;
+uint32_t xtalFreq = 25000000;
 
 //
 // Set up specified PLL with mult, num and denom
@@ -84,10 +84,8 @@ void si5351aOutputOff(uint8_t clk)
 // and MultiSynth 0
 // and produces the output on CLK0
 //
-void si5351aSetFrequency1(uint32_t frequency)
+void si5351aSetFrequency_CLK0(uint32_t frequency)
 {
-	i2cInit();
-	
 	uint32_t pllFreq;
 	uint32_t l;
 	float f;
@@ -95,6 +93,7 @@ void si5351aSetFrequency1(uint32_t frequency)
 	uint32_t num;
 	uint32_t denom;
 	uint32_t divider;
+	static uint8_t n = 1;
 
 	divider = 900000000 / frequency;// Calculate the division ratio. 900,000,000 is the maximum internal 
 									// PLL frequency: 900MHz
@@ -110,6 +109,10 @@ void si5351aSetFrequency1(uint32_t frequency)
 	num = f;						// the actual multiplier is  mult + num / denom
 	denom = 1048575;				// For simplicity we set the denominator to the maximum 1048575
 
+	if (n) {
+		i2cSendRegister(149, 0);	//On some chips SpreadSpectrum is activated by default. We need to disable it.
+		n = 0;
+	}
 									// Set up PLL A with the calculated multiplication ratio
 	setupPLL(SI_SYNTH_PLL_A, mult, num, denom);
 									// Set up MultiSynth divider 0, with the calculated divider. 
@@ -120,7 +123,7 @@ void si5351aSetFrequency1(uint32_t frequency)
 	setupMultisynth(SI_SYNTH_MS_0, divider, SI_R_DIV_1);
 									// Reset the PLL. This causes a glitch in the output. For small changes to 
 									// the parameters, you don't need to reset the PLL, and there is no glitch
-	//i2cSendRegister(SI_PLL_RESET, 0x80); <- Very annoying when the frequency is changed too often or very fast.
+	// i2cSendRegister(SI_PLL_RESET, 0x20); //<- Very annoying when the frequency is changed too often or very fast.
 									// Finally switch on the CLK0 output (0x4F)
 									// and set the MultiSynth0 input to be PLL A
 	i2cSendRegister(SI_CLK0_CONTROL, 0x4F | SI_CLK_SRC_PLL_A);
@@ -137,10 +140,8 @@ void si5351aSetFrequency1(uint32_t frequency)
 // and MultiSynth 0
 // and produces the output on CLK0
 //
-void si5351aSetFrequency2(uint32_t frequency)
+void si5351aSetFrequency_CLK2(uint32_t frequency)
 {
-	i2cInit();
-	
 	uint32_t pllFreq;
 	uint32_t l;
 	float f;
@@ -176,6 +177,6 @@ void si5351aSetFrequency2(uint32_t frequency)
 	i2cSendRegister(SI_PLL_RESET, 0x20);
 									// Finally switch on the CLK0 output (0x4F)
 									// and set the MultiSynth0 input to be PLL A
-	i2cSendRegister(SI_CLK2_CONTROL, 0x4F | SI_CLK_SRC_PLL_B);
+	i2cSendRegister(SI_CLK2_CONTROL, 0x6F | SI_CLK_SRC_PLL_B);
 }
 

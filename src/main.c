@@ -13,6 +13,7 @@
 #include "spi.h"
 #include "keypad.h"
 #include "itu_table.h"
+#include "si5351a.h"
 
 
 typedef enum BFO_MODE_tag {
@@ -240,14 +241,14 @@ void set_freq(char force)
 	/* Write BFO freq to synthesis chip */
 	if (last_bfo_freq != bfo_freq)
 	{
-		si5351aSetFrequency2(bfo_freq);
+		si5351aSetFrequency_CLK2(bfo_freq);
 		last_bfo_freq = bfo_freq;
 	}
 
 	/* Write VFO freq to synthesis chip */
 	if (last_vfo_freq != vfo_freq)
 	{
-		si5351aSetFrequency1(vfo_freq);
+		si5351aSetFrequency_CLK0(vfo_freq);
 		last_vfo_freq = vfo_freq;
 	}
 
@@ -748,6 +749,7 @@ int main(void)
 	nonvolatile_data_init();
 	i2cInit();
 	set_freq(0);
+	si5351aOutputOff(SI_CLK1_CONTROL);
 	keypad_init();
 	adc_init();
 	encoder_init();

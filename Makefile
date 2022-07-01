@@ -4,7 +4,7 @@ VERSION=\"v0.1\"
 
 BINDIR=bin
 SRCDIR=src
-INCDIR=.
+INCDIR=. -I Si5351_ex
 LIBS=
 
 CC=avr-gcc
