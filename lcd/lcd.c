@@ -8,7 +8,6 @@ void lcd_send(uint8_t value, uint8_t mode);
 void lcd_write_nibble(uint8_t nibble);
 
 static uint8_t lcd_displayparams;
-static char lcd_buffer[LCD_COL_COUNT + 1];
 
 void lcd_command(uint8_t command) {
   lcd_send(command, 0);
@@ -37,7 +36,8 @@ void lcd_write_nibble(uint8_t nibble) {
   LCD_PORT = LCD_PORT & ~(1 << LCD_EN);
   LCD_PORT = LCD_PORT | (1 << LCD_EN);
   LCD_PORT = LCD_PORT & ~(1 << LCD_EN);
-  _delay_ms(0.3);																// If delay less than this value, the data is not correctly displayed  
+  _delay_ms(1);																// If delay less than this value, the data is not correctly displayed  
+//task_sleep(0, 1);
 }
 
 void lcd_init(void) {
@@ -59,16 +59,16 @@ void lcd_init(void) {
     & ~(1 << LCD_RS)
     & ~(1 << LCD_RW);
 
-  _delay_ms(4.1);
+  _delay_ms(4);
 
   lcd_write_nibble(0x03); // Switch to 4 bit mode
-  _delay_ms(4.1);
+  _delay_ms(4);
 
   lcd_write_nibble(0x03); // 2nd time
-  _delay_ms(4.1);
+  _delay_ms(4);
 
   lcd_write_nibble(0x03); // 3rd time
-  _delay_ms(4.1);
+  _delay_ms(4);
 
   lcd_write_nibble(0x02); // Set 8-bit mode (?)
 
@@ -169,12 +169,17 @@ void lcd_puts(char *string) {
   }
 }
 
-void lcd_printf(char *format, ...) {
-  va_list args;
-
-  va_start(args, format);
-  vsnprintf(lcd_buffer, LCD_COL_COUNT + 1, format, args);
-  va_end(args);
-
-  lcd_puts(lcd_buffer);
+void lcd_printf(char *s)
+{
+  lcd_puts(s);
 }
+
+//void lcd_printf(char *format, ...) {
+//  va_list args;
+//  char lcd_buffer[LCD_COL_COUNT + 1];
+//  va_start(args, format);
+//  vsnprintf(lcd_buffer, sizeof(lcd_buffer), format, args);
+//  va_end(args);
+
+//  lcd_puts(lcd_buffer);
+//}

@@ -8,13 +8,14 @@
 #include <avr/interrupt.h>
 
 //#include "hd44780/lcd.h"
-#include "lcd/lcd.h"
+#include "lcd.h"
 #include "mcu.h"
-#include "spi.h"
 #include "keypad.h"
 #include "itu_table.h"
 #include "si5351a.h"
 
+#include "arch.h"
+#include "kernel_api.h"
 
 typedef enum BFO_MODE_tag {
 	LSB = 1,
@@ -48,7 +49,7 @@ typedef enum
 } eScan;
 
 static volatile eScan scan = SCAN_NONE;
-static uint16_t scan_time = 1500;
+static uint16_t scan_time = 5;
 
 typedef enum eMENU_ENTRY_tag
 {
@@ -100,17 +101,74 @@ extern uint32_t xtalFreq;
 #define LCD_FREQ_POSITION	7
 #define LCD_SMTR_POSITION	0x40
 
-static volatile uint8_t isr = 0;
 
-volatile char push = 0;
+static volatile uint8_t encoder = 0;
+
 
 ISR(PCINT3_vect)
 {
+
+static volatile uint8_t a = 0;
+static volatile uint8_t isr = 0;
+static volatile uint8_t byte = 0;
+static volatile uint8_t x = 0;
+
 	isr = ((PIND & 0b00110000) >> 4);
 	if ((PIND & 0b00001000) == 0)
 	{
-		push = 1;
+		encoder = PUSH_BTN;
 	}
+
+	if (isr != a )
+	{
+		if (isr == 2 || isr == 0 || isr == 1)
+		{
+			byte |= isr;
+			byte <<= 2;
+			x++;
+		}
+
+		if ((x >= 3) && ((byte == 0x84) || (byte == 0x48)))
+		{
+			switch (byte)
+			{
+				case 0x84:
+				encoder = DIAL_UP;
+				break;
+
+				case 0x48:
+				encoder = DIAL_DOWN;
+				break;
+
+				default:
+				break;
+			}
+			byte = 0;
+			x = 0;
+		}
+		a = isr;
+	}
+}
+
+
+uint8_t encoder_read(void)
+{
+	uint8_t ret = 0;
+
+	switch (encoder)
+	{
+		case 1:
+		case 2:
+		case 3:
+			ret = encoder;
+			encoder = 0;
+			break;
+
+		default:
+		break;
+	}
+
+	return ret;
 }
 
 
@@ -256,6 +314,7 @@ void set_freq(char force)
 	sprintf(buffer, "%lu", frequency.hz / 1000);
 	show_freq(buffer);
 	show_itu(frequency.hz / 1000);
+
 	return;
 }
 
@@ -448,7 +507,7 @@ process_event(void)
 				break;
 
 			case MENU_ENTRY_SCNTIME:
-				scan_time += 50;
+				scan_time += 5;
 				sprintf(buffer, "SCNTIME: %u    ", scan_time);
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
@@ -558,7 +617,7 @@ process_event(void)
 				break;
 
 			case MENU_ENTRY_SCNTIME:
-				scan_time -= 50;
+				scan_time -= 5;
 				sprintf(buffer, "SCNTIME: %u    ", scan_time);
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
@@ -722,60 +781,52 @@ nonvolatile_data_init(void)
 	}
 }
 
-int main(void)
+
+void events(void *p)
 {
-	char buffer[16];
-	uint8_t a = 0;
-	uint16_t zzz = 0;
-	uint16_t last_push = 0;
-
-	// turn on the backlight
-	DDRB = 0b10000000;
-	PORTB = 0b10000000;
-
-    // turn on the display
-	DDRD = 0b00000100;
-	PORTD = 0b00000100;
-
-//	spi_init();
-//	extern void fnRFPlatformInit(void);
-//	fnRFPlatformInit();
-
-	lcd_init();
-	lcd_on();
-	lcd_clear();
-
-	frequency_init();
-	nonvolatile_data_init();
-	i2cInit();
-	set_freq(0);
-	si5351aOutputOff(SI_CLK1_CONTROL);
-	keypad_init();
-	adc_init();
-	encoder_init();
-
-	sei();
-
-	uint8_t byte = 0;
-	char x = 0;
-	int16_t adc_value = 0;
-
-	show_lsb_usb();
-
-	for (zzz = 0;;zzz++)
+	while (1)
 	{
-		if (zzz == 65535) {
-			zzz = 0;
-
-			adc_value = adc_get_value();
-			if (adc_value != -1) {
-				show_voltage(adc_value);
+		if (!event)
+		{
+			if(keypad_event)
+			{
+				event = KEYPAD;
 			}
-			adc_start_conversion(PA7);
+			else
+			{
+				event = encoder_read();
+			}
 		}
 
-		//dummy scan
-		if (scan && !(zzz % scan_time))
+		process_event();
+		clear_events();
+		task_sleep(0, 1);
+	}
+}
+
+
+void vbatt(void *v)
+{
+	int16_t adc_value = 0;
+
+	while (1)
+	{
+		task_sleep(0, 20);
+		adc_value = adc_get_value();
+		if (adc_value != -1) {
+			show_voltage(adc_value);
+		}
+		adc_start_conversion(PA7);
+	}
+}
+
+
+void dummy_scan(void *v)
+{
+	while (1)
+	{
+		task_sleep(0, scan_time);
+		if (scan)
 		{
 			switch (scan)
 			{
@@ -791,69 +842,75 @@ int main(void)
 				event = 0;
 			}
 		}
-		
-
-		if (!event && keypad_event)
-		{
-			event = KEYPAD;
-		}
-
-		if (isr != a )
-		{
-			if (isr == 2 || isr == 0 || isr == 1)
-			{
-				byte |= isr;
-				byte <<= 2;
-				x++;
-			}
-
-			if ((x >= 3) && ((byte == 0x84) || (byte == 0x48)))
-			{
-				switch (byte)
-				{
-					case 0x84:
-					event = DIAL_UP;
-					break;
-
-					case 0x48:
-					event = DIAL_DOWN;
-					break;
-
-					default:
-					sprintf(buffer, "%#x ", byte);
-					lcd_command(LCD_SETDDRAMADDR | 0);
-					lcd_printf(buffer);
-					break;
-				}
-				byte = 0;
-				x = 0;
-			}
-			a = isr;
-		}
-		
-		/*
-		 * Poor man's delayer for push button events.
-		 * If pressed very fast, for example.
-		 * Maybe fixed by hardware using a cap over push contact ?
-		 */
-		if (last_push == 0)
-		{
-			if (push)
-			{
-				event = PUSH_BTN;
-				push = 0;
-				last_push = 8500;
-			}
-		} else {
-			/* if the time is not expired, then clear the PUSH event */
-			last_push--;
-			push = 0;
-		}
-
-		process_event();
-		clear_events();
 	}
+}
 
-	return -1;
+
+/****************************************************************************
+ * Name: main
+ *
+ * Description:
+ *    Main function.
+ *    Do initializations, set up task arguments, starting kernel.
+ *
+ * Input Parameters:
+ *    none
+ *
+ * Returned Value:
+ *    none
+ *
+ * Assumptions:
+ *    Should never return.
+ *
+ ****************************************************************************/
+
+int main(void)
+{
+  /* Variables. */
+
+  /* Initializations. */
+
+	// turn on the backlight
+	DDRB = 0b10000000;
+	PORTB = 0b10000000;
+
+    // turn on the display
+	DDRD = 0b00000100;
+	PORTD = 0b00000100;
+
+	lcd_init();
+	lcd_on();
+	lcd_clear();
+
+	frequency_init();
+	nonvolatile_data_init();
+	i2cInit();
+	set_freq(0);
+	si5351aOutputOff(SI_CLK1_CONTROL);
+	keypad_init();
+	adc_init();
+	encoder_init();
+
+	show_lsb_usb();
+
+  /* Setup task arguments. */
+
+  /* Kernel initialization. */
+
+  kernel_init();
+
+  /* Creating tasks. */
+
+  task_create("Events", &events, NULL, 0);
+  task_create("VBatt", &vbatt, NULL, 0);
+  task_create("Dscan", &dummy_scan, NULL, 0);
+
+  /* Starting the never-ending kernel loop. */
+
+  kernel_start();
+
+  /* Should not reach here. */
+
+  return 0;
 }
 
