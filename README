@@ -2,7 +2,7 @@ Configure:
 ==========
 
 Edit Makefile
-
+If the CPU frequency is 1MHz, the prescaler in uOS/arch/avr/atmega*/timers.c should be 1!
 
 
 How to flash:

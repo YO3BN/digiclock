@@ -38,6 +38,7 @@ static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;
 static int16_t IfEcart = IF_ECART;
 static uint32_t if_center = IF_CENTER;
+static uint8_t fine_tune = 0;
 
 extern uint32_t xtalFreq;
 
@@ -86,6 +87,8 @@ struct eprom_data
 	uint32_t home_freq;
 	uint32_t if_center;
 	uint32_t si5351_qrtz;
+	uint32_t if_width;
+	int32_t  if_offset;
 } eprom_data;
 
 
@@ -324,6 +327,8 @@ static void inline eprom_save(void)
 	eprom_data.home_freq = frequency.hz;
 	eprom_data.si5351_qrtz = xtalFreq;
 	eprom_data.if_center = if_center;
+	eprom_data.if_width = IfEcart;
+	eprom_data.if_offset = offset_freq;
 	eeprom_write_block(&eprom_data, 0, sizeof(eprom_data));
 }
 
@@ -331,25 +336,46 @@ static void process_keypad(char c)
 {
 	static char buffer[16];
 	static char *ptr = buffer;
+	static uint32_t step_bkp = 0;
 
 	/* Check for special keys */
 	switch (c)
 	{
 
 	case 'A':
-		//TODO
-		eBfo = USB;
-		set_freq(0);
-		show_lsb_usb();
-		return;
+		// 50 Hz fine tune
+		if (!fine_tune)
+		{
+			fine_tune = 1;
+			step_bkp = frequency.step;
+			frequency.step = 50; // 50 Hz step
+			return;
+		}
+		else
+		{
+			fine_tune = 0;
+			frequency.step = step_bkp;
+			return;
+		}
 		break;
 
 	case 'B':
-		//TODO
-		eBfo = LSB;
-		set_freq(0);
-		show_lsb_usb();
-		return;
+		//TODO optimize
+		if (eBfo != USB)
+		{
+			eBfo = USB;
+			set_freq(0);
+			show_lsb_usb();
+			return;
+		}
+
+		if (eBfo != LSB)
+		{
+			eBfo = LSB;
+			set_freq(0);
+			show_lsb_usb();
+			return;
+		}
 		break;
 
 	case 'C':
@@ -779,6 +805,16 @@ nonvolatile_data_init(void)
 	{
 		if_center = eprom_data.if_center;
 	}
+
+	if (eprom_data.if_width != 0xffffffff)
+	{
+		IfEcart = eprom_data.if_width;
+	}
+
+	if (eprom_data.if_offset != 0xffffffff)
+	{
+		offset_freq = eprom_data.if_offset;
+	}
 }
 
 
@@ -800,7 +836,7 @@ void events(void *p)
 
 		process_event();
 		clear_events();
-		task_sleep(0, 1);
+		task_sleep(0, 2);
 	}
 }
 
