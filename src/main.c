@@ -45,6 +45,7 @@ extern uint32_t xtalFreq;
 typedef enum
 {
 	SCAN_NONE = 0,
+	SCAN_WAIT,
 	SCAN_UP,
 	SCAN_DOWN,
 } eScan;
@@ -89,6 +90,7 @@ struct eprom_data
 	uint32_t si5351_qrtz;
 	uint32_t if_width;
 	int32_t  if_offset;
+	// TODO: add checksum of all elements stored to eprom.
 } eprom_data;
 
 
@@ -379,17 +381,15 @@ static void process_keypad(char c)
 		break;
 
 	case 'C':
-		if (scan == SCAN_UP)
-			scan = SCAN_NONE;
-		else scan = SCAN_UP;
+		if (scan == SCAN_NONE)
+			scan = SCAN_WAIT;
+		else scan = SCAN_NONE;
 
 		return;
 		break;
 
 	case 'D':
-		if (scan == SCAN_DOWN)
-			scan = SCAN_NONE;
-		else scan = SCAN_DOWN;
+		// TODO
 
 		return;
 		break;
@@ -456,6 +456,26 @@ static void inline
 process_event(void)
 {
 	if (!event) return;
+
+  // set scan direction
+	if (scan == SCAN_WAIT)
+	{
+		switch (event)
+		{
+		case DIAL_UP:
+			scan = SCAN_UP;
+			return;
+			break;
+		
+		case DIAL_DOWN:
+			scan = SCAN_DOWN;
+			return;
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	char buffer[32];
 	switch (event) {
@@ -862,7 +882,7 @@ void dummy_scan(void *v)
 	while (1)
 	{
 		task_sleep(0, scan_time);
-		if (scan)
+		if (scan != SCAN_NONE)
 		{
 			switch (scan)
 			{
@@ -875,7 +895,7 @@ void dummy_scan(void *v)
 				break;
 
 			default:
-				event = 0;
+				break;
 			}
 		}
 	}
