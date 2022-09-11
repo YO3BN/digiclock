@@ -189,7 +189,7 @@ static ITU_Band ItuBand[] =
  * Based on binary search.
  * Algorithm complexity: O(log2(N)+1)
  */
-static uint8_t get_itu_index(uint16_t freq)
+static uint8_t get_itu_index(uint32_t freq)
 {
 	/*
 	 * TODO: when table reach more than 255 entries,
@@ -300,7 +300,7 @@ static void get_itu_title(uint8_t index, char *buffer)
 
 
 //TODO: maybe this should be moved into display_layout.c
-void show_itu(int32_t freq)
+void show_itu(uint32_t freq)
 {
 	static char buffer[32] = "";
 	static uint8_t last_index = 0;
