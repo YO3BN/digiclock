@@ -457,22 +457,47 @@ process_event(void)
 {
 	if (!event) return;
 
-  // set scan direction
-	if (scan == SCAN_WAIT)
+	// set scan direction
+	if (scan)
 	{
-		switch (event)
+		switch (scan)
 		{
-		case DIAL_UP:
-			scan = SCAN_UP;
-			return;
-			break;
-		
-		case DIAL_DOWN:
-			scan = SCAN_DOWN;
-			return;
-			break;
+			case SCAN_WAIT:
+				// initiating scan
+				switch (event)
+				{
+				case DIAL_UP:
+					scan = SCAN_UP;
+					return;
+					break;
 
-		default:
+				case DIAL_DOWN:
+					scan = SCAN_DOWN;
+					return;
+					break;
+
+				default:
+					break;
+				}
+				break;
+
+			case SCAN_DOWN:
+				// change scan direction
+				if (event == DIAL_UP)
+				{
+					scan = SCAN_UP;
+				}
+				break;
+
+			case SCAN_UP:
+				// change scan direction
+				if (event == DIAL_DOWN)
+				{
+					scan = SCAN_DOWN;
+				}
+				break;
+
+			default:
 			break;
 		}
 	}
@@ -884,6 +909,7 @@ void dummy_scan(void *v)
 		task_sleep(0, scan_time);
 		if (scan != SCAN_NONE)
 		{
+			// generating UP/DOWN event
 			switch (scan)
 			{
 			case SCAN_UP:
