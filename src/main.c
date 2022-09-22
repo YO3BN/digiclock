@@ -210,6 +210,9 @@ void show_freq(const char *s)
 	{
 		putch_freq(' ', lcd_freq_pos--);
 	}
+
+	/* Fix for FineTune: point back to the end of row 1. */
+	lcd_command(LCD_SETDDRAMADDR | 15);
 }
 
 
@@ -351,12 +354,19 @@ static void process_keypad(char c)
 			fine_tune = 1;
 			step_bkp = frequency.step;
 			frequency.step = 50; // 50 Hz step
+
+			/* set and show the cursor on the display. */
+			lcd_enable_cursor();
+			lcd_set_cursor(15, 0);
 			return;
 		}
 		else
 		{
 			fine_tune = 0;
 			frequency.step = step_bkp;
+
+			/* remove the cursor from the display. */
+			lcd_disable_cursor();
 			return;
 		}
 		break;
