@@ -197,7 +197,7 @@ void show_freq(const char *s)
 		putch_freq(*p, lcd_freq_pos--);
 		x++;
 
-		if (!(x % 3))
+		if (!(x % 3) && (p - s > 0))
 		{
 			putch_freq(',', lcd_freq_pos--);
 		}
