@@ -392,8 +392,16 @@ static void process_keypad(char c)
 
 	case 'C':
 		if (scan == SCAN_NONE)
+		{
 			scan = SCAN_WAIT;
-		else scan = SCAN_NONE;
+			lcd_enable_blinking();
+			lcd_set_cursor(15, 0);
+		}
+		else
+		{
+			scan = SCAN_NONE;
+			lcd_disable_blinking();
+		}
 
 		return;
 		break;
