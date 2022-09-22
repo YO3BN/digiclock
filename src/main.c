@@ -899,7 +899,7 @@ void events(void *p)
 
 		process_event();
 		clear_events();
-		task_sleep(0, 2);
+		task_sleep(0, 1);
 	}
 }
 
