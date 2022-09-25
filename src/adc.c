@@ -11,13 +11,15 @@
 
 
 static volatile int16_t adc_value = ADC_INVALID_VALUE;
-
+static volatile uint8_t conversion_in_progress = 0;
 
 ISR(ADC_vect)
 {
 	adc_value = ADCL;
 	adc_value |= ((ADCH & 0x03) << 8);
 	adc_value &= 0x03ff;
+
+	conversion_in_progress = 0;
 }
 
 
@@ -51,25 +53,37 @@ adc_disable(void)
 }
 
 
-extern void
+extern int8_t
 adc_start_conversion(const uint8_t pin)
 {
+	if (conversion_in_progress)
+	{
+		return -1;
+	}
+
 	/* Measure signal for the following ADC pin */
+	ADMUX &= 0b11100000; // <- clear the previous pin
 	ADMUX |= (uint8_t) 0x1f & pin;
-	
+
 	/* Start conversion */
 	ADCSRA |= (uint8_t) (1 << ADSC);
-	
+
 	adc_value = ADC_INVALID_VALUE;
+	conversion_in_progress = 1;
 }
 
 extern int16_t
 adc_get_value(void)
 {
+	if (conversion_in_progress)
+	{
+		return -1;
+	}
+
 	/* Check if ADC was read yet */
 	if ((adc_value & ADC_INVALID_VALUE) == ADC_INVALID_VALUE)
 		return -1;
-	
+
 	/* return only LSB 10 bits */ 
 	return adc_value & 0x03ff;
 }

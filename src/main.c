@@ -108,6 +108,62 @@ extern uint32_t xtalFreq;
 
 
 static volatile uint8_t encoder = 0;
+static uint8_t show_agc_dB = 0;
+
+
+/* the index is used as dB count. */
+static uint16_t
+agc_to_dB_table[] = {
+	1023,
+	894,
+	718,
+	650,
+	608,
+	575,
+	549,
+	526,
+	505,
+	487,
+	469,
+	453,
+	435,
+	420,
+	406,
+	393,
+	380,
+	368,
+	356,
+	345,
+	334,
+	323,
+	312,
+	301,
+	293,
+	284,
+	276,
+	268,
+	260,
+	252,
+	245,
+	238,
+	231,
+	224,
+	219,
+	213,
+	208,
+	203,
+	198,
+	194,
+	190,
+	188,
+	185,
+	184,
+	183,
+	182,
+	181,
+	0
+};
+
 
 
 ISR(PCINT3_vect)
@@ -321,7 +377,11 @@ void set_freq(char force)
 	/* Write freq to display in KHz units */
 	sprintf(buffer, "%lu", frequency.hz / 1000);
 	show_freq(buffer);
-	show_itu(frequency.hz / 1000);
+
+	if (!show_agc_dB)
+	{
+		show_itu(frequency.hz / 1000);
+	}
 
 	return;
 }
@@ -408,7 +468,18 @@ static void process_keypad(char c)
 
 	case 'D':
 		// TODO
+		if (!show_agc_dB)
+		{
+			show_agc_dB = 1;
+		}
+		else
+		{
+			show_agc_dB = 0;
 
+			sprintf(buffer, "                   ");
+			lcd_command(LCD_SETDDRAMADDR | 0x40);
+			lcd_printf(buffer);
+		}
 		return;
 		break;
 
@@ -911,11 +982,86 @@ void vbatt(void *v)
 	while (1)
 	{
 		task_sleep(0, 20);
-		adc_value = adc_get_value();
-		if (adc_value != -1) {
-			show_voltage(adc_value);
+		if (!show_agc_dB)
+		{
+			adc_value = adc_get_value();
+			if (adc_value != -1) {
+				show_voltage(adc_value);
+			}
+			adc_start_conversion(PA7);
 		}
-		adc_start_conversion(PA7);
+	}
+}
+
+
+float adc_to_dB(uint16_t adc_value)
+{
+	/* TODO: beautify this function. */
+	int x = 0;
+	int y = 0;
+	int dB = 0;
+	float percentage = 0;
+
+	if (adc_value > agc_to_dB_table[0])
+	{
+		return 0;
+	}
+
+	/* Loop thru table till the value is found.
+	 * Note: The index is used as decibell count.
+	 */
+	for (dB = 0; adc_value <= agc_to_dB_table[dB] && agc_to_dB_table[dB] != 0; dB++);
+
+	/* After loop walk the index is one greater, need to decrement it by one. */
+	if (dB)
+	{
+		dB--;
+	}
+
+	x = agc_to_dB_table[dB] - adc_value;
+	y = agc_to_dB_table[dB] - agc_to_dB_table[dB + 1];
+
+	percentage = x * 100 / y;
+	percentage /= 100;
+
+	return (dB + percentage);
+}
+
+
+void agc2dB(void *v)
+{
+	int16_t adc_value = 0;
+	int16_t adc_value_last = 0;
+	char buffer[32] = "";
+	uint8_t i = 0;
+
+	while (1)
+	{
+		if (show_agc_dB)
+		{
+			for (i = 0; i <= 4; i++)
+			{
+				adc_start_conversion(PA0);
+				task_sleep(0, 1);
+				adc_value = adc_get_value();
+
+				if (adc_value > adc_value_last)
+				{
+					adc_value_last = adc_value;
+				}
+			}
+
+			adc_value = adc_value_last;
+			adc_value_last = 0;
+
+			sprintf(buffer, "%0.2f dB    %d  ", adc_to_dB(adc_value), adc_value);
+			lcd_set_cursor(0, 1);
+			lcd_printf(buffer);
+		}
+		else
+		{
+			task_sleep(0, 1);
+		}
 	}
 }
 
@@ -1004,6 +1150,7 @@ int main(void)
   task_create("Events", &events, NULL, 0);
   task_create("VBatt", &vbatt, NULL, 0);
   task_create("Dscan", &dummy_scan, NULL, 0);
+	task_create("AGC2dB", &agc2dB, NULL, 0);
 
   /* Starting the never-ending kernel loop. */
 
