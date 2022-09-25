@@ -17,6 +17,10 @@
 #include "arch.h"
 #include "kernel_api.h"
 
+#include "drivers.h"
+#include "uart.h"
+
+
 typedef enum BFO_MODE_tag {
 	LSB = 1,
 	USB = 2,
@@ -475,10 +479,6 @@ static void process_keypad(char c)
 		else
 		{
 			show_agc_dB = 0;
-
-			sprintf(buffer, "                   ");
-			lcd_command(LCD_SETDDRAMADDR | 0x40);
-			lcd_printf(buffer);
 		}
 		return;
 		break;
@@ -1092,6 +1092,37 @@ void dummy_scan(void *v)
 }
 
 
+void uart_echo(void *v)
+{
+  int ret = 0;
+  char buffer[128] = "Type anything and press ENTER, you should receive the echo.\r\n";
+
+  ret |= drv_init_uart();
+  ret |= drv_open_uart();
+  int z = DRVCTRL_UART_MODE_TXT;
+  ret |= drv_ctrl_uart(DRVCTRL_SET, &z);
+//  if (ret != DRV_STATUS_SUCCESS)
+//    {
+
+//    }
+
+  ret = kstrlen(buffer);
+  drv_write_uart(buffer, ret);
+  kmemset(buffer, 0, sizeof(buffer));
+
+  while (1)
+    {
+      ret = drv_read_uart(buffer, sizeof(buffer));
+			if (ret > 0)
+			{
+				drv_write_uart("Received: ", 10);
+				drv_write_uart(buffer, kstrlen(buffer));
+				drv_write_uart("\r\n", 2);
+			}
+    }
+}
+
+
 /****************************************************************************
  * Name: main
  *
@@ -1151,6 +1182,7 @@ int main(void)
   task_create("VBatt", &vbatt, NULL, 0);
   task_create("Dscan", &dummy_scan, NULL, 0);
 	task_create("AGC2dB", &agc2dB, NULL, 0);
+	task_create("UartEcho", &uart_echo, NULL, 0);
 
   /* Starting the never-ending kernel loop. */
 
