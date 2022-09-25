@@ -49,7 +49,7 @@ typedef struct __attribute__ ((packed))
 } ITU_Band;
 
 
-void show_itu(int32_t freq);
+void show_itu(uint32_t freq);
 
 
 #endif /* ITU_TABLE_H_ */

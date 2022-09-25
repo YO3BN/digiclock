@@ -8,13 +8,14 @@
 #include <avr/interrupt.h>
 
 //#include "hd44780/lcd.h"
-#include "lcd/lcd.h"
+#include "lcd.h"
 #include "mcu.h"
-#include "spi.h"
 #include "keypad.h"
 #include "itu_table.h"
 #include "si5351a.h"
 
+#include "arch.h"
+#include "kernel_api.h"
 
 typedef enum BFO_MODE_tag {
 	LSB = 1,
@@ -37,18 +38,20 @@ static eBFO_Mode eBfo = LSB;
 static eIF_OPERATION eIFOp = IF_OPER_ADD;
 static int16_t IfEcart = IF_ECART;
 static uint32_t if_center = IF_CENTER;
+static uint8_t fine_tune = 0;
 
 extern uint32_t xtalFreq;
 
 typedef enum
 {
 	SCAN_NONE = 0,
+	SCAN_WAIT,
 	SCAN_UP,
 	SCAN_DOWN,
 } eScan;
 
 static volatile eScan scan = SCAN_NONE;
-static uint16_t scan_time = 1500;
+static uint16_t scan_time = 5;
 
 typedef enum eMENU_ENTRY_tag
 {
@@ -85,6 +88,9 @@ struct eprom_data
 	uint32_t home_freq;
 	uint32_t if_center;
 	uint32_t si5351_qrtz;
+	uint32_t if_width;
+	int32_t  if_offset;
+	// TODO: add checksum of all elements stored to eprom.
 } eprom_data;
 
 
@@ -100,17 +106,130 @@ extern uint32_t xtalFreq;
 #define LCD_FREQ_POSITION	7
 #define LCD_SMTR_POSITION	0x40
 
-static volatile uint8_t isr = 0;
 
-volatile char push = 0;
+static volatile uint8_t encoder = 0;
+static uint8_t show_agc_dB = 0;
+
+
+/* the index is used as dB count. */
+static uint16_t
+agc_to_dB_table[] = {
+	1023,
+	894,
+	718,
+	650,
+	608,
+	575,
+	549,
+	526,
+	505,
+	487,
+	469,
+	453,
+	435,
+	420,
+	406,
+	393,
+	380,
+	368,
+	356,
+	345,
+	334,
+	323,
+	312,
+	301,
+	293,
+	284,
+	276,
+	268,
+	260,
+	252,
+	245,
+	238,
+	231,
+	224,
+	219,
+	213,
+	208,
+	203,
+	198,
+	194,
+	190,
+	188,
+	185,
+	184,
+	183,
+	182,
+	181,
+	0
+};
+
+
 
 ISR(PCINT3_vect)
 {
+
+static volatile uint8_t a = 0;
+static volatile uint8_t isr = 0;
+static volatile uint8_t byte = 0;
+static volatile uint8_t x = 0;
+
 	isr = ((PIND & 0b00110000) >> 4);
 	if ((PIND & 0b00001000) == 0)
 	{
-		push = 1;
+		encoder = PUSH_BTN;
 	}
+
+	if (isr != a )
+	{
+		if (isr == 2 || isr == 0 || isr == 1)
+		{
+			byte |= isr;
+			byte <<= 2;
+			x++;
+		}
+
+		if ((x >= 3) && ((byte == 0x84) || (byte == 0x48)))
+		{
+			switch (byte)
+			{
+				case 0x84:
+				encoder = DIAL_UP;
+				break;
+
+				case 0x48:
+				encoder = DIAL_DOWN;
+				break;
+
+				default:
+				break;
+			}
+			byte = 0;
+			x = 0;
+		}
+		a = isr;
+	}
+}
+
+
+uint8_t encoder_read(void)
+{
+	uint8_t ret = 0;
+
+	switch (encoder)
+	{
+		case 1:
+		case 2:
+		case 3:
+			ret = encoder;
+			encoder = 0;
+			break;
+
+		default:
+		break;
+	}
+
+	return ret;
 }
 
 
@@ -134,7 +253,7 @@ void show_freq(const char *s)
 		putch_freq(*p, lcd_freq_pos--);
 		x++;
 
-		if (!(x % 3))
+		if (!(x % 3) && (p - s > 0))
 		{
 			putch_freq(',', lcd_freq_pos--);
 		}
@@ -147,6 +266,9 @@ void show_freq(const char *s)
 	{
 		putch_freq(' ', lcd_freq_pos--);
 	}
+
+	/* Fix for FineTune: point back to the end of row 1. */
+	lcd_command(LCD_SETDDRAMADDR | 15);
 }
 
 
@@ -255,7 +377,12 @@ void set_freq(char force)
 	/* Write freq to display in KHz units */
 	sprintf(buffer, "%lu", frequency.hz / 1000);
 	show_freq(buffer);
-	show_itu(frequency.hz / 1000);
+
+	if (!show_agc_dB)
+	{
+		show_itu(frequency.hz / 1000);
+	}
+
 	return;
 }
 
@@ -265,6 +392,8 @@ static void inline eprom_save(void)
 	eprom_data.home_freq = frequency.hz;
 	eprom_data.si5351_qrtz = xtalFreq;
 	eprom_data.if_center = if_center;
+	eprom_data.if_width = IfEcart;
+	eprom_data.if_offset = offset_freq;
 	eeprom_write_block(&eprom_data, 0, sizeof(eprom_data));
 }
 
@@ -272,40 +401,85 @@ static void process_keypad(char c)
 {
 	static char buffer[16];
 	static char *ptr = buffer;
+	static uint32_t step_bkp = 0;
 
 	/* Check for special keys */
 	switch (c)
 	{
 
 	case 'A':
-		//TODO
-		eBfo = USB;
-		set_freq(0);
-		show_lsb_usb();
-		return;
+		// 50 Hz fine tune
+		if (!fine_tune)
+		{
+			fine_tune = 1;
+			step_bkp = frequency.step;
+			frequency.step = 50; // 50 Hz step
+
+			/* set and show the cursor on the display. */
+			lcd_enable_cursor();
+			lcd_set_cursor(15, 0);
+			return;
+		}
+		else
+		{
+			fine_tune = 0;
+			frequency.step = step_bkp;
+
+			/* remove the cursor from the display. */
+			lcd_disable_cursor();
+			return;
+		}
 		break;
 
 	case 'B':
-		//TODO
-		eBfo = LSB;
-		set_freq(0);
-		show_lsb_usb();
-		return;
+		//TODO optimize
+		if (eBfo != USB)
+		{
+			eBfo = USB;
+			set_freq(0);
+			show_lsb_usb();
+			return;
+		}
+
+		if (eBfo != LSB)
+		{
+			eBfo = LSB;
+			set_freq(0);
+			show_lsb_usb();
+			return;
+		}
 		break;
 
 	case 'C':
-		if (scan == SCAN_UP)
+		if (scan == SCAN_NONE)
+		{
+			scan = SCAN_WAIT;
+			lcd_enable_blinking();
+			lcd_set_cursor(15, 0);
+		}
+		else
+		{
 			scan = SCAN_NONE;
-		else scan = SCAN_UP;
+			lcd_disable_blinking();
+		}
 
 		return;
 		break;
 
 	case 'D':
-		if (scan == SCAN_DOWN)
-			scan = SCAN_NONE;
-		else scan = SCAN_DOWN;
+		// TODO
+		if (!show_agc_dB)
+		{
+			show_agc_dB = 1;
+		}
+		else
+		{
+			show_agc_dB = 0;
 
+			sprintf(buffer, "                   ");
+			lcd_command(LCD_SETDDRAMADDR | 0x40);
+			lcd_printf(buffer);
+		}
 		return;
 		break;
 
@@ -371,6 +545,51 @@ static void inline
 process_event(void)
 {
 	if (!event) return;
+
+	// set scan direction
+	if (scan)
+	{
+		switch (scan)
+		{
+			case SCAN_WAIT:
+				// initiating scan
+				switch (event)
+				{
+				case DIAL_UP:
+					scan = SCAN_UP;
+					return;
+					break;
+
+				case DIAL_DOWN:
+					scan = SCAN_DOWN;
+					return;
+					break;
+
+				default:
+					break;
+				}
+				break;
+
+			case SCAN_DOWN:
+				// change scan direction
+				if (event == DIAL_UP)
+				{
+					scan = SCAN_UP;
+				}
+				break;
+
+			case SCAN_UP:
+				// change scan direction
+				if (event == DIAL_DOWN)
+				{
+					scan = SCAN_DOWN;
+				}
+				break;
+
+			default:
+			break;
+		}
+	}
 
 	char buffer[32];
 	switch (event) {
@@ -448,7 +667,7 @@ process_event(void)
 				break;
 
 			case MENU_ENTRY_SCNTIME:
-				scan_time += 50;
+				scan_time += 5;
 				sprintf(buffer, "SCNTIME: %u    ", scan_time);
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
@@ -558,7 +777,7 @@ process_event(void)
 				break;
 
 			case MENU_ENTRY_SCNTIME:
-				scan_time -= 50;
+				scan_time -= 5;
 				sprintf(buffer, "SCNTIME: %u    ", scan_time);
 				lcd_command(LCD_SETDDRAMADDR | 0x40);
 				lcd_printf(buffer);
@@ -720,14 +939,182 @@ nonvolatile_data_init(void)
 	{
 		if_center = eprom_data.if_center;
 	}
+
+	if (eprom_data.if_width != 0xffffffff)
+	{
+		IfEcart = eprom_data.if_width;
+	}
+
+	if (eprom_data.if_offset != 0xffffffff)
+	{
+		offset_freq = eprom_data.if_offset;
+	}
 }
+
+
+void events(void *p)
+{
+	while (1)
+	{
+		if (!event)
+		{
+			if(keypad_event)
+			{
+				event = KEYPAD;
+			}
+			else
+			{
+				event = encoder_read();
+			}
+		}
+
+		process_event();
+		clear_events();
+		task_sleep(0, 1);
+	}
+}
+
+
+void vbatt(void *v)
+{
+	int16_t adc_value = 0;
+
+	while (1)
+	{
+		task_sleep(0, 20);
+		if (!show_agc_dB)
+		{
+			adc_value = adc_get_value();
+			if (adc_value != -1) {
+				show_voltage(adc_value);
+			}
+			adc_start_conversion(PA7);
+		}
+	}
+}
+
+
+float adc_to_dB(uint16_t adc_value)
+{
+	/* TODO: beautify this function. */
+	int x = 0;
+	int y = 0;
+	int dB = 0;
+	float percentage = 0;
+
+	if (adc_value > agc_to_dB_table[0])
+	{
+		return 0;
+	}
+
+	/* Loop thru table till the value is found.
+	 * Note: The index is used as decibell count.
+	 */
+	for (dB = 0; adc_value <= agc_to_dB_table[dB] && agc_to_dB_table[dB] != 0; dB++);
+
+	/* After loop walk the index is one greater, need to decrement it by one. */
+	if (dB)
+	{
+		dB--;
+	}
+
+	x = agc_to_dB_table[dB] - adc_value;
+	y = agc_to_dB_table[dB] - agc_to_dB_table[dB + 1];
+
+	percentage = x * 100 / y;
+	percentage /= 100;
+
+	return (dB + percentage);
+}
+
+
+void agc2dB(void *v)
+{
+	int16_t adc_value = 0;
+	int16_t adc_value_last = 0;
+	char buffer[32] = "";
+	uint8_t i = 0;
+
+	while (1)
+	{
+		if (show_agc_dB)
+		{
+			for (i = 0; i <= 4; i++)
+			{
+				adc_start_conversion(PA0);
+				task_sleep(0, 1);
+				adc_value = adc_get_value();
+
+				if (adc_value > adc_value_last)
+				{
+					adc_value_last = adc_value;
+				}
+			}
+
+			adc_value = adc_value_last;
+			adc_value_last = 0;
+
+			sprintf(buffer, "%0.2f dB    %d  ", adc_to_dB(adc_value), adc_value);
+			lcd_set_cursor(0, 1);
+			lcd_printf(buffer);
+		}
+		else
+		{
+			task_sleep(0, 1);
+		}
+	}
+}
+
+
+void dummy_scan(void *v)
+{
+	while (1)
+	{
+		task_sleep(0, scan_time);
+		if (scan != SCAN_NONE)
+		{
+			// generating UP/DOWN event
+			switch (scan)
+			{
+			case SCAN_UP:
+				event = DIAL_UP;
+				break;
+
+			case SCAN_DOWN:
+				event = DIAL_DOWN;
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
+}
+
+
+/****************************************************************************
+ * Name: main
+ *
+ * Description:
+ *    Main function.
+ *    Do initializations, set up task arguments, starting kernel.
+ *
+ * Input Parameters:
+ *    none
+ *
+ * Returned Value:
+ *    none
+ *
+ * Assumptions:
+ *    Should never return.
+ *
+ ****************************************************************************/
 
 int main(void)
 {
-	char buffer[16];
-	uint8_t a = 0;
-	uint16_t zzz = 0;
-	uint16_t last_push = 0;
+  /* Variables. */
+
+  /* Initializations. */
 
 	// turn on the backlight
 	DDRB = 0b10000000;
@@ -736,10 +1123,6 @@ int main(void)
     // turn on the display
 	DDRD = 0b00000100;
 	PORTD = 0b00000100;
-
-//	spi_init();
-//	extern void fnRFPlatformInit(void);
-//	fnRFPlatformInit();
 
 	lcd_init();
 	lcd_on();
@@ -754,106 +1137,27 @@ int main(void)
 	adc_init();
 	encoder_init();
 
-	sei();
-
-	uint8_t byte = 0;
-	char x = 0;
-	int16_t adc_value = 0;
-
 	show_lsb_usb();
 
-	for (zzz = 0;;zzz++)
-	{
-		if (zzz == 65535) {
-			zzz = 0;
+  /* Setup task arguments. */
 
-			adc_value = adc_get_value();
-			if (adc_value != -1) {
-				show_voltage(adc_value);
-			}
-			adc_start_conversion(PA7);
-		}
+  /* Kernel initialization. */
 
-		//dummy scan
-		if (scan && !(zzz % scan_time))
-		{
-			switch (scan)
-			{
-			case SCAN_UP:
-				event = DIAL_UP;
-				break;
+  kernel_init();
 
-			case SCAN_DOWN:
-				event = DIAL_DOWN;
-				break;
+  /* Creating tasks. */
 
-			default:
-				event = 0;
-			}
-		}
-		
+  task_create("Events", &events, NULL, 0);
+  task_create("VBatt", &vbatt, NULL, 0);
+  task_create("Dscan", &dummy_scan, NULL, 0);
+	task_create("AGC2dB", &agc2dB, NULL, 0);
 
-		if (!event && keypad_event)
-		{
-			event = KEYPAD;
-		}
+  /* Starting the never-ending kernel loop. */
 
-		if (isr != a )
-		{
-			if (isr == 2 || isr == 0 || isr == 1)
-			{
-				byte |= isr;
-				byte <<= 2;
-				x++;
-			}
+  kernel_start();
 
-			if ((x >= 3) && ((byte == 0x84) || (byte == 0x48)))
-			{
-				switch (byte)
-				{
-					case 0x84:
-					event = DIAL_UP;
-					break;
+  /* Should not reach here. */
 
-					case 0x48:
-					event = DIAL_DOWN;
-					break;
-
-					default:
-					sprintf(buffer, "%#x ", byte);
-					lcd_command(LCD_SETDDRAMADDR | 0);
-					lcd_printf(buffer);
-					break;
-				}
-				byte = 0;
-				x = 0;
-			}
-			a = isr;
-		}
-		
-		/*
-		 * Poor man's delayer for push button events.
-		 * If pressed very fast, for example.
-		 * Maybe fixed by hardware using a cap over push contact ?
-		 */
-		if (last_push == 0)
-		{
-			if (push)
-			{
-				event = PUSH_BTN;
-				push = 0;
-				last_push = 8500;
-			}
-		} else {
-			/* if the time is not expired, then clear the PUSH event */
-			last_push--;
-			push = 0;
-		}
-
-		process_event();
-		clear_events();
-	}
-
-	return -1;
+  return 0;
 }
 
