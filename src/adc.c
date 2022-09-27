@@ -1,6 +1,9 @@
 #include <avr/io.h>
 //#include <avr/sleep.h>
 #include <avr/interrupt.h>
+
+#include <semaphore.h>
+
 #include "mcu.h"
 
 /**
@@ -13,6 +16,8 @@
 static volatile int16_t adc_value = ADC_INVALID_VALUE;
 static volatile uint8_t conversion_in_progress = 0;
 
+extern semaphore_t adc_sem;
+
 ISR(ADC_vect)
 {
 	adc_value = ADCL;
@@ -20,6 +25,8 @@ ISR(ADC_vect)
 	adc_value &= 0x03ff;
 
 	conversion_in_progress = 0;
+
+	sem_giveISR(&adc_sem);
 }
 
 
@@ -35,9 +42,9 @@ adc_init(void)
 		 (1 << ADIE)	|	/* ADC Interrupt	*/
 		 (1 << ADEN)	|	/* Enable ADC Circuitry */
 		 (0 << ADATE)	|	/* Auto-Trigger		*/
-		 (1 << ADPS2)	|	/* ADC Clock Prescaler  */
-		 (1 << ADPS1)	|	/* ADC Clock Prescaler  */
-		 (1 << ADPS0);		/* ADC Clock Prescaler  */
+		 (0 << ADPS2)	|	/* ADC Clock Prescaler  */
+		 (0 << ADPS1)	|	/* ADC Clock Prescaler  */
+		 (0 << ADPS0);		/* ADC Clock Prescaler  */
 	
 	adc_value = ADC_INVALID_VALUE;
 	
@@ -70,6 +77,8 @@ adc_start_conversion(const uint8_t pin)
 
 	adc_value = ADC_INVALID_VALUE;
 	conversion_in_progress = 1;
+
+	return 1;
 }
 
 extern int16_t

@@ -114,6 +114,7 @@ extern uint32_t xtalFreq;
 static volatile uint8_t encoder = 0;
 static uint8_t show_agc_dB = 0;
 
+semaphore_t adc_sem;
 
 /* the index is used as dB count. */
 static uint16_t
@@ -168,6 +169,45 @@ agc_to_dB_table[] = {
 	0
 };
 
+
+uint16_t audio_to_dB_table[] = {
+	528,
+	530,
+	531,
+	532,
+	534,
+	535,
+	536,
+	538,
+	539,
+	540,
+	542,
+	544,
+	547,
+	550,
+	554,
+	558,
+	563,
+	569,
+	576,
+	581,
+	587,
+	596,
+	606,
+	616,
+	626,
+	641,
+	657,
+	669,
+	686,
+	707,
+	726,
+	753,
+	777,
+	808,
+	816,
+	1023
+};
 
 
 ISR(PCINT3_vect)
@@ -475,6 +515,8 @@ static void process_keypad(char c)
 		if (!show_agc_dB)
 		{
 			show_agc_dB = 1;
+			lcd_set_cursor(0, 1);
+			lcd_printf("                ");
 		}
 		else
 		{
@@ -977,6 +1019,7 @@ void events(void *p)
 
 void vbatt(void *v)
 {
+	sem_init(&adc_sem); // <-- TODO: move this to an init function, but be careful cannot be initialized before the kernel starts.
 	int16_t adc_value = 0;
 
 	while (1)
@@ -989,12 +1032,13 @@ void vbatt(void *v)
 				show_voltage(adc_value);
 			}
 			adc_start_conversion(PA7);
+			sem_take(&adc_sem, SEM_WAIT_FOREVER);
 		}
 	}
 }
 
 
-float adc_to_dB(uint16_t adc_value)
+float agc_to_dB(uint16_t adc_value)
 {
 	/* TODO: beautify this function. */
 	int x = 0;
@@ -1028,35 +1072,135 @@ float adc_to_dB(uint16_t adc_value)
 }
 
 
-void agc2dB(void *v)
+float audio_to_dB(uint16_t adc_value)
 {
+	/* TODO: beautify this function. */
+	int x = 0;
+	int y = 0;
+	int dB = 0;
+	float percentage = 0;
+
+	if (adc_value <= audio_to_dB_table[0])
+	{
+		return 0;
+	}
+
+	/* Loop thru table till the value is found.
+	 * Note: The index is used as decibell count.
+	 */
+	for (dB = 0; adc_value >= audio_to_dB_table[dB] && audio_to_dB_table[dB] != 1023; dB++);
+
+	/* After loop walk the index is one greater, need to decrement it by one. */
+	if (dB)
+	{
+		dB--;
+	}
+
+	x = audio_to_dB_table[dB + 1] - audio_to_dB_table[dB];
+	y = adc_value - audio_to_dB_table[dB];
+	percentage = y * 100 / x;
+	percentage /= 100;
+
+	return (dB + percentage);
+}
+
+
+float audio2dB(void)
+{
+	uint16_t i = 0;
 	int16_t adc_value = 0;
 	int16_t adc_value_last = 0;
+
+	for (i = 0; i <= 512; i++)
+	{
+		adc_start_conversion(PA1);
+		sem_take(&adc_sem, SEM_WAIT_FOREVER);
+
+		adc_value = adc_get_value();
+		if (adc_value < 512)
+		{
+			// we are on the negative side,
+			// thus transform it to positive.
+			adc_value = 512 - adc_value;
+		}
+
+		if (adc_value > adc_value_last)
+		{
+			adc_value_last = adc_value;
+		}
+	}
+
+	adc_value = adc_value_last;
+	adc_value_last = 0;
+
+	return (audio_to_dB(adc_value));
+}
+
+float agc2dB(void)
+{
+	int8_t z = 0;
+	uint16_t i = 0;
+	int16_t adc_value = 0;
+	int16_t adc_value_last = 0;
+
+	for (i = 0; i <= 10; i++)
+	{
+		adc_start_conversion(PA0);
+		sem_take(&adc_sem, SEM_WAIT_FOREVER);
+
+		adc_value = adc_get_value();
+		if (adc_value > adc_value_last)
+		{
+			adc_value_last = adc_value;
+		}
+	}
+
+	adc_value = adc_value_last;
+	adc_value_last = 0;
+
+	return (agc_to_dB(adc_value));
+}
+
+
+void smeter(void *v)
+{
 	char buffer[32] = "";
-	uint8_t i = 0;
+	int16_t dB = 0;
+	int16_t S9 = 48; // <-- this should be calibrated
+	int8_t s = 0;
+	int16_t dB_below_S9 = 0;
+	int8_t i = 0;
 
 	while (1)
 	{
 		if (show_agc_dB)
 		{
-			for (i = 0; i <= 4; i++)
-			{
-				adc_start_conversion(PA0);
-				task_sleep(0, 1);
-				adc_value = adc_get_value();
+			dB = ((uint16_t) roundf(audio2dB())) + ((uint16_t) roundf(agc2dB()));
 
-				if (adc_value > adc_value_last)
+			if (dB >= S9)
+			{
+				sprintf(buffer, "S9 +%ddB ", dB - S9);
+			}
+			else
+			{
+				for (s = 0, i = 0, dB_below_S9 = S9 - 1; dB_below_S9 >= dB; dB_below_S9--, i++)
 				{
-					adc_value_last = adc_value;
+					if (i == 6)
+					{
+						s++;
+						i = 0;
+					}
 				}
+
+				dB = 6 - i;
+				s = 8 - s;
+
+				sprintf(buffer, "S%d +%ddB ", s, dB);
 			}
 
-			adc_value = adc_value_last;
-			adc_value_last = 0;
-
-			sprintf(buffer, "%0.2f dB    %d  ", adc_to_dB(adc_value), adc_value);
 			lcd_set_cursor(0, 1);
 			lcd_printf(buffer);
+			task_sleep(0, 1);
 		}
 		else
 		{
@@ -1176,12 +1320,14 @@ int main(void)
 
   kernel_init();
 
-  /* Creating tasks. */
+  /* Creating tasks.
+	 * TODO: decrease stack size for small tasks.
+	 */
 
   task_create("Events", &events, NULL, 0);
   task_create("VBatt", &vbatt, NULL, 0);
   task_create("Dscan", &dummy_scan, NULL, 0);
-	task_create("AGC2dB", &agc2dB, NULL, 0);
+	task_create("Smeter", &smeter, NULL, 0);
 	task_create("UartEcho", &uart_echo, NULL, 0);
 
   /* Starting the never-ending kernel loop. */
