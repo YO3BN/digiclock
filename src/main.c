@@ -1179,7 +1179,7 @@ void smeter(void *v)
 
 			if (dB >= S9)
 			{
-				sprintf(buffer, "S9 +%ddB ", dB - S9);
+				sprintf(buffer, "S9 +%2ddB ", dB - S9);
 			}
 			else
 			{
@@ -1195,7 +1195,7 @@ void smeter(void *v)
 				dB = 6 - i;
 				s = 8 - s;
 
-				sprintf(buffer, "S%d +%ddB ", s, dB);
+				sprintf(buffer, "S%d +%2ddB ", s, dB);
 			}
 
 			lcd_set_cursor(0, 1);
