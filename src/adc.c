@@ -1,10 +1,8 @@
 #include <avr/io.h>
-//#include <avr/sleep.h>
 #include <avr/interrupt.h>
 
 #include <semaphore.h>
 
-#include "mcu.h"
 
 /**
  * Since the ADC maximum value is hold on 10bits,

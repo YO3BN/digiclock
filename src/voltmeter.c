@@ -2,7 +2,6 @@
 #include <avr/interrupt.h>
 #include <stdio.h>
 #include <string.h>
-//#include "mcu.h"
 
 #include "../lcd/lcd.h"
 

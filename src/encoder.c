@@ -1,6 +1,5 @@
 
 #include <avr/io.h>
-//#include "mcu.h"
 
 extern void inline
 encoder_init(void)
