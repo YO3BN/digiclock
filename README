@@ -1,16 +1,32 @@
 Configure:
 ==========
 
-Edit Makefile
-If the CPU frequency is 1MHz, the prescaler in uOS/arch/avr/atmega*/timers.c should be 1!
+To prepare for compilation run the configure script with needed arguments.
+Like the following:
+
+./configure --uos ../../uOS --cpu atmega1284 --freq 1000000 --src lcd --src Si5351_ex
+
+
+Compile:
+========
+
+make
+
+
+To Clean:
+=========
+
+make clean
+or
+make distclean
 
 
 How to flash:
 =============
 
 sudo avrdude -c usbtiny -p m1284 -U flash:w:./bin/firmware.hex:i
+or
 avrdude -P /dev/ttyUSB0 -c stk500v1 -b9600 -p m1284 -U flash:w:bin/firmware.hex:i
-
 
 
 Read fuses (usually are shown when flashing)
@@ -27,6 +43,7 @@ The original values were:
 avrdude: safemode: Fuses OK (E:FF, H:99, L:62)
 
 
+If the CPU frequency is 1MHz, the prescaler in uOS/arch/avr/atmega*/timers.c should be 1!
 
 
 Write Hfuse

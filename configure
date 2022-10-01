@@ -1,0 +1,293 @@
+#!/bin/sh
+
+APP_NAME="demo_app"
+CPU=
+UOS_DIR=
+FREQ="1000000"
+PREFIX="avr"
+CFLAGS="-pipe -static -Wall"
+CCOPTIMIZE="-O2 -fdata-sections -ffunction-sections -fomit-frame-pointer -fshort-enums -Wl,--gc-sections,-u,vfprintf"
+DEBUG="-Og -ggdb3"
+LIBS="-lm -lprintf_flt"
+CWD=`pwd`
+UOS_HDIRS=
+UOS_CDIRS=
+HDIRS=
+CDIRS=
+BINDIR="bin"
+
+remove_crlf_chars()
+{
+  # replace \n and \r characters with spaces
+  echo "${@}" | tr "\n" " "
+}
+
+
+find_uos_include_dirs()
+{
+	# find all headers, but omit arch
+	UOS_HDIRS=`find ${UOS_DIR}/src -type f -name '*.h' | grep -v "src/arch"`
+
+	# add only selected arch h files
+	UOS_HDIRS="${UOS_HDIRS} `find ${UOS_DIR}/src/arch/ -type f -name '*.h' | grep ${CPU}`"
+
+	# add headers from app
+	UOS_HDIRS="${UOS_HDIRS} `find ${CWD}/src/ -type f -name '*.h'`"
+
+	# strip file names, remaining with include paths only
+	UOS_HDIRS=`for X in ${UOS_HDIRS}; do dirname ${X}; done`
+
+	# sort and delete duplicated paths
+	UOS_HDIRS=`for X in ${UOS_HDIRS}; do echo ${X}; done | sort -u`
+
+	# add gcc include parameters '-I' to each folder.
+	UOS_HDIRS=`for X in ${UOS_HDIRS}; do echo -I ${X}; done`
+
+	UOS_HDIRS=`remove_crlf_chars ${UOS_HDIRS}`
+}
+
+
+find_uos_source_dirs()
+{
+	# find all C source files, but omit arch files
+	UOS_CDIRS=`find ${UOS_DIR}/src -type f -name '*.c' | grep -v -e "src/arch"`
+
+	# add only selected arch C files
+	UOS_CDIRS="$UOS_CDIRS `find ${UOS_DIR}/src/arch/ -type f -name '*.c' | grep ${CPU}`"
+
+	# add app src
+	UOS_CDIRS="$UOS_CDIRS `find ${CWD}/src/ -type f -name '*.c'`"
+
+	UOS_CDIRS=`remove_crlf_chars ${UOS_CDIRS}`
+}
+
+
+find_include_dirs()
+{
+	# find all headers for the app.
+	TMP=`find ${1} -type f -name '*.h'`
+
+	# strip file names, remaining with include paths only
+	TMP=`for X in ${TMP}; do dirname ${X}; done`
+
+	# sort and delete duplicated paths
+	TMP=`for X in ${TMP}; do echo ${X}; done | sort -u`
+
+	# add gcc include parameters '-I' to each folder.
+	TMP=`for X in ${TMP}; do echo -I ${X}; done`
+
+	TMP=`remove_crlf_chars ${TMP}`
+
+	HDIRS="${HDIRS} ${TMP}"
+}
+
+
+find_source_dirs()
+{
+	# find all C source files, but omit arch files
+	TMP=`find ${1} -type f -name '*.c'`
+
+	TMP=`remove_crlf_chars ${TMP}`
+
+	CDIRS="${CDIRS} ${TMP}"
+}
+
+
+show_help()
+{
+	echo
+	echo "Configure and generate a makefile."
+	echo "Usage: ${0} [options]"
+	echo
+	echo "Options:"
+	echo "  --uos DIR            uOS root directory."
+	echo "  --cpu CPUNAME        The architecture type (see uOS/src/arch)."
+	echo "  --freq FREQ          CPU frequency in Hertz."
+	echo "  --prefix PREFIX      Prefix for GCC, binutils (avr, arm-none-eabi)."
+	echo "  --include INC        Add needed headers folder."
+	echo "  --src SRC            Add needed C source folders."
+	echo "  --cflags FLAGS       Extra options for compiler."
+	echo "  --debug FLAGS        Debugging flags for GCC."
+	echo "  --ccoptimize STR     Optimize flags for GCC."
+	echo "  --help               Show this help message."
+	echo
+	echo "Example: ${0} --uOS ~/downloads/uOS --cpu atmega1284"
+	echo
+}
+
+
+###############################################################################
+# Start
+###############################################################################
+
+if test ${#} -lt 1
+then
+    show_help
+    exit 1
+fi
+
+while test ${#} -gt 0
+do
+	case ${1} in
+	"--uos")
+	UOS_DIR=${2}
+	shift
+	shift
+	;;
+
+	"--cpu")
+	CPU=${2}
+	shift
+	shift
+	;;
+
+	"--prefix")
+	PREFIX=${2}
+	shift
+	shift
+	;;
+
+	"--include")
+	find_include_dirs ${2}
+	shift
+	shift
+	;;
+
+	"--src")
+	find_include_dirs ${2}
+	find_source_dirs ${2}
+	shift
+	shift
+	;;
+
+	"--freq")
+	FREQ=${2}
+	shift
+	shift
+	;;
+
+	"--cflags")
+	CFLAFS=${2}
+	shift
+	shift
+	;;
+
+	"--debug")
+	DEBUG=${2}
+	shift
+	shift
+	;;
+
+	"--ccoptimize")
+	CCOPTIMIZE=${2}
+	shift
+	shift
+	;;
+
+	*)
+	show_help
+	exit 1
+	;;
+
+	esac
+done
+
+
+###############################################################################
+# Checking for valid options
+###############################################################################
+
+
+echo -n "checking for specified cpu... "
+if test -z ${CPU}
+then
+	echo "no"
+  echo "configure: error: no cpu specified."
+  show_help
+  exit 1
+else
+  echo ${CPU}
+fi
+
+
+echo -n "checking for uOS directory... "
+if test -z ${UOS_DIR}
+then
+  echo "no"
+  echo "error: uOS directory undefined."
+	show_help
+	exit 1
+else
+  find_uos_include_dirs
+  find_uos_source_dirs
+	echo ${UOS_DIR}
+fi
+
+
+echo -n "checking for specified app name... "
+if test -z ${APP_NAME}
+then
+	echo "no"
+  echo "configure: error: no app name specified."
+  show_help
+  exit 1
+else
+  echo ${APP_NAME}
+fi
+
+
+echo -n "checking for prefix... "
+if test -z ${PREFIX}
+then
+	echo "no"
+  echo "configure: error: no prefix specified."
+  show_help
+  exit 1
+else
+  echo ${PREFIX}
+fi
+
+
+echo -n "checking for specified freq... "
+if test -z ${FREQ}
+then
+	echo "no"
+  echo "configure: error: no freq specified."
+  show_help
+  exit 1
+else
+  echo ${FREQ}
+fi
+
+
+echo \
+-------------------------------------------------------------------------------
+echo Generating Makefile ...
+
+cat > Makefile << EOF
+all:
+	${PREFIX}-gcc $CCOPTIMIZE $CFLAGS -mmcu=$CPU -DF_CPU=$FREQ $UOS_HDIRS $UOS_CDIRS $HDIRS $CDIRS -o $BINDIR/$APP_NAME $LIBS
+	@echo
+	${PREFIX}-size ${BINDIR}/${APP_NAME}
+	${PREFIX}-objcopy -O ihex -j .text -j .data ${BINDIR}/${APP_NAME} ${BINDIR}/${APP_NAME}.hex
+
+debug:
+	${PREFIX}-gcc $DEBUG $CFLAGS -mmcu=$CPU -DF_CPU=$FREQ $UOS_HDIRS $UOS_CDIRS $HDIRS $CDIRS -o $BINDIR/$APP_NAME $LIBS
+	@echo
+	${PREFIX}-size ${BINDIR}/${APP_NAME}
+	${PREFIX}-objcopy -O ihex -j .text -j .data ${BINDIR}/${APP_NAME} ${BINDIR}/${APP_NAME}.hex
+
+clean:
+	rm -v ${BINDIR}/${APP_NAME} ${BINDIR}/${APP_NAME}.hex
+	find . -name '*.o' -exec rm -v '{}' \;
+	find . -name '*.a' -exec rm -v '{}' \;
+
+distclean:
+	rm -v ${BINDIR}/${APP_NAME} ${BINDIR}/${APP_NAME}.hex
+	find . -name '*.o' -exec rm -v '{}' \;
+	find . -name '*.a' -exec rm -v '{}' \;
+	rm -v Makefile
+
+EOF
+
+echo "done"
