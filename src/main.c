@@ -851,6 +851,12 @@ process_event(void)
 		break;
 
 		case PUSH_BTN:
+			/* Do not enter into menu if scan is activated. */
+			if (scan != SCAN_NONE)
+			{
+				break;
+			}
+
 			eMenuEntry++;
 			switch (eMenuEntry)
 			{
@@ -1144,7 +1150,7 @@ float agc2dB(void)
 		{
 			continue;
 		}
-
+		
 		if (adc_value > adc_value_last)
 		{
 			adc_value_last = adc_value;
