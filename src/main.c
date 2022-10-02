@@ -112,7 +112,6 @@ extern uint32_t xtalFreq;
 static volatile uint8_t encoder = 0;
 static uint8_t show_agc_dB = 0;
 
-semaphore_t adc_sem;
 
 /* the index is used as dB count. */
 static uint16_t
@@ -1017,20 +1016,15 @@ void events(void *p)
 
 void vbatt(void *v)
 {
-	sem_init(&adc_sem); // <-- TODO: move this to an init function, but be careful cannot be initialized before the kernel starts.
+	adc_init();
 	int16_t adc_value = 0;
 
 	while (1)
 	{
 		task_sleep(0, 20);
-		if (!show_agc_dB)
-		{
-			adc_value = adc_get_value();
-			if (adc_value != -1) {
-				show_voltage(adc_value);
-			}
-			adc_start_conversion(PA7);
-			sem_take(&adc_sem, SEM_WAIT_FOREVER);
+		adc_value = adc_read(PA7);
+		if (adc_value > -1) {
+			show_voltage(adc_value);
 		}
 	}
 }
@@ -1111,10 +1105,12 @@ float audio2dB(void)
 
 	for (i = 0; i <= 512; i++)
 	{
-		adc_start_conversion(PA1);
-		sem_take(&adc_sem, SEM_WAIT_FOREVER);
+		adc_value = adc_read(PA1);
+		if (adc_value < 0)
+		{
+			continue;
+		}
 
-		adc_value = adc_get_value();
 		if (adc_value < 512)
 		{
 			// we are on the negative side,
@@ -1143,10 +1139,12 @@ float agc2dB(void)
 
 	for (i = 0; i <= 10; i++)
 	{
-		adc_start_conversion(PA0);
-		sem_take(&adc_sem, SEM_WAIT_FOREVER);
+		adc_value = adc_read(PA0);
+		if (adc_value < 0)
+		{
+			continue;
+		}
 
-		adc_value = adc_get_value();
 		if (adc_value > adc_value_last)
 		{
 			adc_value_last = adc_value;
@@ -1307,7 +1305,6 @@ int main(void)
 	set_freq(0);
 	si5351aOutputOff(SI_CLK1_CONTROL);
 	keypad_init();
-	adc_init();
 	encoder_init();
 
 	show_lsb_usb();
