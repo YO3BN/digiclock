@@ -1036,7 +1036,7 @@ void vbatt(void *v)
 }
 
 
-float agc_to_dB(uint16_t adc_value)
+float agc_to_dB(int16_t adc_value)
 {
 	/* TODO: beautify this function. */
 	int x = 0;
@@ -1044,7 +1044,8 @@ float agc_to_dB(uint16_t adc_value)
 	int dB = 0;
 	float percentage = 0;
 
-	if (adc_value > agc_to_dB_table[0])
+	if (adc_value < 0 || adc_value > 1023 ||
+	adc_value >= agc_to_dB_table[0])
 	{
 		return 0;
 	}
@@ -1070,7 +1071,7 @@ float agc_to_dB(uint16_t adc_value)
 }
 
 
-float audio_to_dB(uint16_t adc_value)
+float audio_to_dB(int16_t adc_value)
 {
 	/* TODO: beautify this function. */
 	int x = 0;
@@ -1078,7 +1079,8 @@ float audio_to_dB(uint16_t adc_value)
 	int dB = 0;
 	float percentage = 0;
 
-	if (adc_value <= audio_to_dB_table[0])
+	if (adc_value < 0 || adc_value > 1023 ||
+	adc_value <= audio_to_dB_table[0])
 	{
 		return 0;
 	}
@@ -1177,7 +1179,7 @@ void smeter(void *v)
 	{
 		if (show_agc_dB)
 		{
-			dB = ((uint16_t) roundf(audio2dB())) + ((uint16_t) roundf(agc2dB()));
+			dB = ((int16_t) roundf(audio2dB())) + ((int16_t) roundf(agc2dB()));
 
 			if (dB >= S9)
 			{
